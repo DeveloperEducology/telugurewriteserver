@@ -27,12 +27,12 @@ const AWS_BUCKET_NAME = process.env.AWS_BUCKET_NAME;
 const AWS_REGION = process.env.AWS_REGION;
 
 // --- TARGETS ---
-const TARGET_HANDLES = [
+let TARGET_HANDLES = [
   "IndianTechGuide",
   "TeluguScribe",
 ];
 
-const RSS_FEEDS = [
+let RSS_FEEDS = [
   { name: "NTV Telugu", url: "https://ntvtelugu.com/feed" },
   { name: "Disha Daily", url: "https://www.dishadaily.com/google_feeds.xml" },
   { name: "TV9 Telugu", url: "https://tv9telugu.com/feed" },
@@ -43,6 +43,23 @@ const RSS_FEEDS = [
   { name: "NDTV India", url: "https://feeds.feedburner.com/ndtvnews-india-news" },
   { name: "NDTV Sports", url: "https://feeds.feedburner.com/ndtvsports-latest" },
 ];
+
+// Create schemas for dynamic sources
+const twitterSourceSchema = new mongoose.Schema({
+  handle: { type: String, required: true, unique: true },
+  isActive: { type: Boolean, default: true },
+  addedAt: { type: Date, default: Date.now }
+});
+
+const rssSourceSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  url: { type: String, required: true, unique: true },
+  isActive: { type: Boolean, default: true },
+  addedAt: { type: Date, default: Date.now }
+});
+
+const TwitterSource = mongoose.models.TwitterSource || mongoose.model("TwitterSource", twitterSourceSchema);
+const RSSSource = mongoose.models.RSSSource || mongoose.model("RSSSource", rssSourceSchema);
 
 const s3Client = new S3Client({
   region: AWS_REGION,
@@ -197,6 +214,24 @@ async function getOrCreateTags(tagNames) {
   }
   return tagIds;
 }
+
+// Function to load sources from database
+async function loadSources() {
+  try {
+    const twitterSources = await TwitterSource.find({ isActive: true });
+    const rssSources = await RSSSource.find({ isActive: true });
+    
+    TARGET_HANDLES = twitterSources.map(source => source.handle);
+    RSS_FEEDS = rssSources.map(source => ({ name: source.name, url: source.url }));
+    
+    console.log(`✅ Loaded ${TARGET_HANDLES.length} Twitter handles and ${RSS_FEEDS.length} RSS feeds`);
+  } catch (error) {
+    console.error("Error loading sources:", error);
+  }
+}
+
+// Load sources on startup
+loadSources();
 
 // ✅ SCRAPER
 async function scrapeUrlContent(url) {
@@ -436,10 +471,12 @@ app.get("/api/dashboard-stats", async (req, res) => {
         { $sort: { count: -1 } },
         { $limit: 10 }
       ]),
-      recentPosts: await Post.find().sort({ publishedAt: -1 }).limit(10).select('title sourceName publishedAt categories'),
+      recentPosts: await Post.find().sort({ publishedAt: -1 }).limit(10).select('title sourceName publishedAt categories isPublished'),
       queueItems: await Queue.find().sort({ queuedAt: 1 }).limit(20).select('text source queuedAt'),
-      rssFeeds: RSS_FEEDS.length,
       twitterHandles: TARGET_HANDLES.length,
+      rssFeeds: RSS_FEEDS.length,
+      twitterSources: await TwitterSource.find(),
+      rssSources: await RSSSource.find(),
       lastUpdated: new Date()
     };
     
@@ -449,10 +486,10 @@ app.get("/api/dashboard-stats", async (req, res) => {
   }
 });
 
-// Get all posts
+// Get all posts with enhanced filtering
 app.get("/api/posts", async (req, res) => {
   try {
-    const { page = 1, limit = 20, category } = req.query;
+    const { page = 1, limit = 20, category, search, status } = req.query;
     const skip = (page - 1) * limit;
     
     const filter = {};
@@ -460,11 +497,25 @@ app.get("/api/posts", async (req, res) => {
       filter.categories = category;
     }
     
+    if (search) {
+      filter.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { summary: { $regex: search, $options: 'i' } },
+        { sourceName: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    if (status === 'published') {
+      filter.isPublished = true;
+    } else if (status === 'unpublished') {
+      filter.isPublished = false;
+    }
+    
     const posts = await Post.find(filter)
       .sort({ publishedAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
-      .select('title summary imageUrl categories publishedAt sourceName');
+      .select('title summary imageUrl categories publishedAt sourceName isPublished postId');
     
     const total = await Post.countDocuments(filter);
     
@@ -523,6 +574,74 @@ app.get("/api/posts/:id", async (req, res) => {
   }
 });
 
+// Update post
+app.put("/api/posts/:id", async (req, res) => {
+  try {
+    const { title, summary, categories, isPublished, imageUrl, sourceName } = req.body;
+    
+    const post = await Post.findOne({ postId: req.params.id });
+    if (!post) {
+      return res.status(404).json({ success: false, error: "Post not found" });
+    }
+    
+    // Update fields if provided
+    if (title !== undefined) post.title = title;
+    if (summary !== undefined) post.summary = summary;
+    if (categories !== undefined) post.categories = categories;
+    if (isPublished !== undefined) post.isPublished = isPublished;
+    if (imageUrl !== undefined) post.imageUrl = imageUrl;
+    if (sourceName !== undefined) post.sourceName = sourceName;
+    
+    await post.save();
+    
+    res.json({
+      success: true,
+      message: "Post updated successfully",
+      post: {
+        postId: post.postId,
+        title: post.title,
+        isPublished: post.isPublished
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Toggle post publish status
+app.post("/api/posts/:id/toggle-publish", async (req, res) => {
+  try {
+    const post = await Post.findOne({ postId: req.params.id });
+    if (!post) {
+      return res.status(404).json({ success: false, error: "Post not found" });
+    }
+    
+    post.isPublished = !post.isPublished;
+    await post.save();
+    
+    res.json({
+      success: true,
+      message: `Post ${post.isPublished ? 'published' : 'unpublished'} successfully`,
+      isPublished: post.isPublished
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Delete post
+app.delete("/api/posts/:id", async (req, res) => {
+  try {
+    const result = await Post.deleteOne({ postId: req.params.id });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ success: false, error: "Post not found" });
+    }
+    res.json({ success: true, message: "Post deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Add text content to queue
 app.post("/api/add-text-to-queue", async (req, res) => {
   try {
@@ -548,6 +667,313 @@ app.post("/api/add-text-to-queue", async (req, res) => {
       success: true, 
       message: "Text added to queue successfully",
       queueId: queueItem.id 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Create manual posts directly (bypass queue)
+app.post("/api/create-manual-posts", async (req, res) => {
+  try {
+    const posts = Array.isArray(req.body) ? req.body : [req.body];
+    
+    if (!posts || posts.length === 0) {
+      return res.status(400).json({ success: false, error: "No posts data provided" });
+    }
+    
+    const createdPosts = [];
+    
+    for (const postData of posts) {
+      const { title, summary, imageUrl, source, sourceName, sourceType, categories, relatedStories } = postData;
+      
+      if (!title || !summary) {
+        console.log("Skipping post: Missing title or summary");
+        continue;
+      }
+      
+      // Check if post already exists
+      const existingPost = await Post.findOne({ 
+        title: title,
+        summary: { $regex: new RegExp(summary.substring(0, 50), 'i') }
+      });
+      
+      if (existingPost) {
+        console.log(`Skipping duplicate post: ${title}`);
+        continue;
+      }
+      
+      const newPost = new Post({
+        postId: generatePostId(),
+        title,
+        summary,
+        text: summary,
+        imageUrl: imageUrl || null,
+        source: source || "Manual",
+        sourceName: sourceName || "Manual Parser",
+        sourceType: sourceType || "manual",
+        categories: categories || ["General"],
+        relatedStories: relatedStories || [],
+        isPublished: true,
+        type: "normal_post",
+        lang: "te",
+        publishedAt: new Date()
+      });
+      
+      await newPost.save();
+      createdPosts.push({
+        postId: newPost.postId,
+        title: newPost.title
+      });
+      
+      console.log(`✅ Created manual post: ${title}`);
+    }
+    
+    res.json({
+      success: true,
+      message: `Created ${createdPosts.length} posts successfully`,
+      count: createdPosts.length,
+      posts: createdPosts
+    });
+    
+  } catch (error) {
+    console.error("Error creating manual posts:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Bulk update posts (publish/unpublish)
+app.post("/api/posts/bulk-update", async (req, res) => {
+  try {
+    const { postIds, action } = req.body;
+    
+    if (!Array.isArray(postIds) || postIds.length === 0) {
+      return res.status(400).json({ success: false, error: "No post IDs provided" });
+    }
+    
+    let update = {};
+    let message = "";
+    
+    if (action === 'publish') {
+      update = { isPublished: true };
+      message = "published";
+    } else if (action === 'unpublish') {
+      update = { isPublished: false };
+      message = "unpublished";
+    } else if (action === 'delete') {
+      await Post.deleteMany({ postId: { $in: postIds } });
+      message = "deleted";
+    } else {
+      return res.status(400).json({ success: false, error: "Invalid action" });
+    }
+    
+    if (action !== 'delete') {
+      await Post.updateMany(
+        { postId: { $in: postIds } },
+        { $set: update }
+      );
+    }
+    
+    res.json({
+      success: true,
+      message: `${postIds.length} posts ${message} successfully`
+    });
+    
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Twitter Sources Management
+app.get("/api/twitter-sources", async (req, res) => {
+  try {
+    const sources = await TwitterSource.find().sort({ addedAt: -1 });
+    res.json({ success: true, sources });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post("/api/twitter-sources", async (req, res) => {
+  try {
+    const { handle } = req.body;
+    
+    if (!handle) {
+      return res.status(400).json({ success: false, error: "Twitter handle is required" });
+    }
+    
+    // Remove @ if present
+    const cleanHandle = handle.replace('@', '');
+    
+    // Check if already exists
+    const existing = await TwitterSource.findOne({ handle: cleanHandle });
+    if (existing) {
+      return res.status(400).json({ success: false, error: "Twitter handle already exists" });
+    }
+    
+    const source = new TwitterSource({
+      handle: cleanHandle,
+      isActive: true
+    });
+    
+    await source.save();
+    
+    // Reload sources
+    await loadSources();
+    
+    res.json({
+      success: true,
+      message: "Twitter source added successfully",
+      source
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put("/api/twitter-sources/:id", async (req, res) => {
+  try {
+    const { isActive } = req.body;
+    
+    const source = await TwitterSource.findById(req.params.id);
+    if (!source) {
+      return res.status(404).json({ success: false, error: "Source not found" });
+    }
+    
+    if (isActive !== undefined) {
+      source.isActive = isActive;
+      await source.save();
+      
+      // Reload sources
+      await loadSources();
+    }
+    
+    res.json({
+      success: true,
+      message: "Twitter source updated successfully",
+      source
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete("/api/twitter-sources/:id", async (req, res) => {
+  try {
+    const source = await TwitterSource.findById(req.params.id);
+    if (!source) {
+      return res.status(404).json({ success: false, error: "Source not found" });
+    }
+    
+    await TwitterSource.deleteOne({ _id: req.params.id });
+    
+    // Reload sources
+    await loadSources();
+    
+    res.json({
+      success: true,
+      message: "Twitter source deleted successfully"
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// RSS Sources Management
+app.get("/api/rss-sources", async (req, res) => {
+  try {
+    const sources = await RSSSource.find().sort({ addedAt: -1 });
+    res.json({ success: true, sources });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post("/api/rss-sources", async (req, res) => {
+  try {
+    const { name, url } = req.body;
+    
+    if (!name || !url) {
+      return res.status(400).json({ success: false, error: "Name and URL are required" });
+    }
+    
+    // Check if already exists
+    const existing = await RSSSource.findOne({ url });
+    if (existing) {
+      return res.status(400).json({ success: false, error: "RSS source already exists" });
+    }
+    
+    // Test the RSS feed
+    try {
+      await rssParser.parseURL(url);
+    } catch (error) {
+      return res.status(400).json({ success: false, error: "Invalid RSS feed URL" });
+    }
+    
+    const source = new RSSSource({
+      name,
+      url,
+      isActive: true
+    });
+    
+    await source.save();
+    
+    // Reload sources
+    await loadSources();
+    
+    res.json({
+      success: true,
+      message: "RSS source added successfully",
+      source
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put("/api/rss-sources/:id", async (req, res) => {
+  try {
+    const { name, url, isActive } = req.body;
+    
+    const source = await RSSSource.findById(req.params.id);
+    if (!source) {
+      return res.status(404).json({ success: false, error: "Source not found" });
+    }
+    
+    if (name !== undefined) source.name = name;
+    if (url !== undefined) source.url = url;
+    if (isActive !== undefined) source.isActive = isActive;
+    
+    await source.save();
+    
+    // Reload sources
+    await loadSources();
+    
+    res.json({
+      success: true,
+      message: "RSS source updated successfully",
+      source
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete("/api/rss-sources/:id", async (req, res) => {
+  try {
+    const source = await RSSSource.findById(req.params.id);
+    if (!source) {
+      return res.status(404).json({ success: false, error: "Source not found" });
+    }
+    
+    await RSSSource.deleteOne({ _id: req.params.id });
+    
+    // Reload sources
+    await loadSources();
+    
+    res.json({
+      success: true,
+      message: "RSS source deleted successfully"
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -600,6 +1026,7 @@ app.post("/api/add-content-to-queue", async (req, res) => {
       text: title ? `Title: ${title}\nContent: ${content || ""}` : content || `Article from ${url}`,
       url: url || "", 
       imageUrl: imageUrl || null,
+      relatedStories: relatedStories,
       media: imageUrl ? [{ type: 'photo', media_url_https: imageUrl, url: imageUrl }] : [],
       extendedEntities: imageUrl ? { media: [{ media_url_https: imageUrl }] } : {},
       source: source || "Manual Paste",
@@ -631,21 +1058,13 @@ app.get("/api/trigger-auto-fetch", async (req, res) => {
   res.json({ success: true, queued_total: total });
 });
 
-// Delete post
-app.delete("/api/posts/:id", async (req, res) => {
-  try {
-    await Post.deleteOne({ postId: req.params.id });
-    res.json({ success: true, message: "Post deleted" });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
 // Dashboard HTML
 app.get("/", (req, res) => {
   res.redirect("/dashboard");
 });
 
+
+// Replace the dashboard route with this corrected version:
 app.get("/dashboard", (req, res) => {
   res.send(`
 <!DOCTYPE html>
@@ -894,6 +1313,11 @@ app.get("/dashboard", (req, res) => {
             border: 1px solid var(--border);
         }
         
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+        
         /* Stats Grid */
         .stats-grid {
             display: grid;
@@ -1016,6 +1440,9 @@ app.get("/dashboard", (req, res) => {
         .badge-danger { background: #ffebee; color: #d32f2f; }
         .badge-info { background: #e0f7fa; color: #0097a7; }
         
+        .badge-published { background: #d1fae5; color: #065f46; }
+        .badge-unpublished { background: #fee2e2; color: #991b1b; }
+        
         /* Forms */
         .form-group {
             margin-bottom: 1rem;
@@ -1070,11 +1497,15 @@ app.get("/dashboard", (req, res) => {
         .modal-content {
             background: white;
             border-radius: 12px;
-            max-width: 500px;
+            max-width: 600px;
             width: 100%;
             max-height: 90vh;
             overflow-y: auto;
             animation: modalSlide 0.3s ease;
+        }
+        
+        .modal-lg {
+            max-width: 800px;
         }
         
         @keyframes modalSlide {
@@ -1196,6 +1627,74 @@ app.get("/dashboard", (req, res) => {
             gap: 0.5rem;
         }
         
+        /* Checkbox */
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+        }
+        
+        .checkbox-container input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        /* Bulk Actions */
+        .bulk-actions {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+        
+        .bulk-actions.active {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        /* Post Actions */
+        .post-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        /* Status Indicator */
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        
+        .status-active { background: #10b981; }
+        .status-inactive { background: #ef4444; }
+        
+        /* Smart Parser Styles */
+        .parser-container {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .parser-input {
+            background: #1e1e1e;
+            color: #a5f3fc;
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+        }
+        
         /* Mobile Responsive */
         @media (max-width: 1024px) {
             .main-content {
@@ -1270,6 +1769,10 @@ app.get("/dashboard", (req, res) => {
                 width: 100%;
                 justify-content: flex-end;
             }
+            
+            .post-actions {
+                flex-direction: column;
+            }
         }
     </style>
 </head>
@@ -1301,6 +1804,9 @@ app.get("/dashboard", (req, res) => {
                 </button>
                 <button class="btn btn-warning" onclick="showAddTextModal()">
                     <i class="fas fa-plus"></i> Add Text
+                </button>
+                <button class="btn btn-info" onclick="showSmartParserModal()">
+                    <i class="fas fa-magic"></i> Smart Parser
                 </button>
                 <button class="btn btn-light" onclick="refreshDashboard()">
                     <i class="fas fa-sync-alt"></i> Refresh
@@ -1342,6 +1848,9 @@ app.get("/dashboard", (req, res) => {
                     </a>
                     <a href="#" class="nav-link" onclick="showAddUrlModal()">
                         <i class="fas fa-link"></i> Add URL
+                    </a>
+                    <a href="#" class="nav-link" onclick="showSmartParserModal()">
+                        <i class="fas fa-magic"></i> Smart Parser
                     </a>
                     <a href="#" class="nav-link" onclick="clearQueue()">
                         <i class="fas fa-trash"></i> Clear Queue
@@ -1445,23 +1954,48 @@ app.get("/dashboard", (req, res) => {
                                 <option value="Crime">Crime</option>
                                 <option value="General">General</option>
                             </select>
+                            <select id="status-filter" class="form-control" style="width: auto;" onchange="loadPosts()">
+                                <option value="all">All Status</option>
+                                <option value="published">Published</option>
+                                <option value="unpublished">Unpublished</option>
+                            </select>
+                            <input type="text" id="search-posts" class="form-control" placeholder="Search posts..." style="width: 200px;" onkeyup="debouncedSearch()">
                         </div>
+                    </div>
+                    
+                    <!-- Bulk Actions -->
+                    <div class="bulk-actions" id="bulkActions">
+                        <div>
+                            <strong id="selectedCount">0</strong> posts selected
+                        </div>
+                        <select id="bulkActionSelect" class="form-control" style="width: auto;">
+                            <option value="">Choose action...</option>
+                            <option value="publish">Publish Selected</option>
+                            <option value="unpublish">Unpublish Selected</option>
+                            <option value="delete">Delete Selected</option>
+                        </select>
+                        <button class="btn btn-sm btn-primary" onclick="performBulkAction()">Apply</button>
+                        <button class="btn btn-sm btn-light" onclick="clearSelection()">Clear Selection</button>
                     </div>
                     
                     <div class="table-responsive">
                         <table class="table">
                             <thead>
                                 <tr>
+                                    <th style="width: 30px;">
+                                        <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                                    </th>
                                     <th>Title</th>
                                     <th>Category</th>
                                     <th>Source</th>
+                                    <th>Status</th>
                                     <th>Published</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="posts-list">
                                 <tr>
-                                    <td colspan="5" class="loading">
+                                    <td colspan="7" class="loading">
                                         <i class="fas fa-spinner fa-spin"></i> Loading posts...
                                     </td>
                                 </tr>
@@ -1494,10 +2028,15 @@ app.get("/dashboard", (req, res) => {
                 <!-- RSS Feeds Section -->
                 <div id="rss-section" class="section" style="display: none;">
                     <div class="content-header">
-                        <h2><i class="fas fa-rss"></i> RSS Feeds</h2>
-                        <button class="btn btn-primary" onclick="triggerRSSFetch()">
-                            <i class="fas fa-sync-alt"></i> Fetch Now
-                        </button>
+                        <h2><i class="fas fa-rss"></i> RSS Feeds Management</h2>
+                        <div class="controls">
+                            <button class="btn btn-primary" onclick="showAddRSSModal()">
+                                <i class="fas fa-plus"></i> Add RSS
+                            </button>
+                            <button class="btn btn-success" onclick="triggerRSSFetch()">
+                                <i class="fas fa-sync-alt"></i> Fetch Now
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="card">
@@ -1505,19 +2044,19 @@ app.get("/dashboard", (req, res) => {
                             <table class="table">
                                 <thead>
                                     <tr>
-                                        <th>Source Name</th>
+                                        <th>Name</th>
                                         <th>URL</th>
                                         <th>Status</th>
+                                        <th>Added</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    ${RSS_FEEDS.map(feed => `
-                                        <tr>
-                                            <td>${feed.name}</td>
-                                            <td><small>${feed.url}</small></td>
-                                            <td><span class="badge badge-success">Active</span></td>
-                                        </tr>
-                                    `).join('')}
+                                <tbody id="rss-sources-list">
+                                    <tr>
+                                        <td colspan="5" class="loading">
+                                            <i class="fas fa-spinner fa-spin"></i> Loading RSS sources...
+                                        </td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -1527,10 +2066,15 @@ app.get("/dashboard", (req, res) => {
                 <!-- Twitter Handles Section -->
                 <div id="twitter-section" class="section" style="display: none;">
                     <div class="content-header">
-                        <h2><i class="fab fa-twitter"></i> Twitter Handles</h2>
-                        <button class="btn btn-success" onclick="triggerTwitterFetch()">
-                            <i class="fas fa-sync-alt"></i> Fetch Now
-                        </button>
+                        <h2><i class="fab fa-twitter"></i> Twitter Handles Management</h2>
+                        <div class="controls">
+                            <button class="btn btn-primary" onclick="showAddTwitterModal()">
+                                <i class="fas fa-plus"></i> Add Twitter
+                            </button>
+                            <button class="btn btn-success" onclick="triggerTwitterFetch()">
+                                <i class="fas fa-sync-alt"></i> Fetch Now
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="card">
@@ -1540,21 +2084,16 @@ app.get("/dashboard", (req, res) => {
                                     <tr>
                                         <th>Handle</th>
                                         <th>Status</th>
+                                        <th>Added</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    ${TARGET_HANDLES.map(handle => `
-                                        <tr>
-                                            <td>@${handle}</td>
-                                            <td><span class="badge badge-success">Active</span></td>
-                                            <td>
-                                                <button class="btn btn-sm btn-primary" onclick="fetchSingleHandle('${handle}')">
-                                                    <i class="fas fa-sync"></i> Fetch
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    `).join('')}
+                                <tbody id="twitter-sources-list">
+                                    <tr>
+                                        <td colspan="4" class="loading">
+                                            <i class="fas fa-spinner fa-spin"></i> Loading Twitter sources...
+                                        </td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -1632,10 +2171,212 @@ app.get("/dashboard", (req, res) => {
         </div>
     </div>
     
+    <!-- Smart Parser Modal -->
+    <div class="modal" id="smartParserModal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3><i class="fas fa-magic"></i> Smart Parser V3 (Telugu Logic)</h3>
+                <button class="btn btn-sm btn-light" onclick="hideModal('smartParserModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="parser-container">
+                    <div class="form-group">
+                        <label class="form-label">Image URL (for all stories)</label>
+                        <input type="text" class="form-control" id="parserImageUrl" 
+                               value="https://cdn.siasat.com/wp-content/uploads/2022/02/KCR_1.jpg">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Paste Telugu Text Block Here</label>
+                        <textarea class="form-control" id="rawInput" rows="10" 
+                                  placeholder="Paste your Telugu text here..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Parsed Preview</label>
+                        <div class="parser-input" id="previewArea">
+                            Parse and preview will appear here...
+                        </div>
+                    </div>
+                    
+                    <div class="btn-group" style="display: flex; gap: 10px;">
+                        <button class="btn btn-primary" onclick="parseAndPreview()">
+                            <i class="fas fa-eye"></i> Parse & Preview
+                        </button>
+                        <button class="btn btn-success" id="uploadBtn" onclick="uploadParsedToDB()" disabled>
+                            <i class="fas fa-upload"></i> Upload to Database
+                        </button>
+                    </div>
+                    
+                    <div id="parserStatus" style="margin-top: 1rem;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Post Modal -->
+    <div class="modal" id="editPostModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-edit"></i> Edit Post</h3>
+                <button class="btn btn-sm btn-light" onclick="hideModal('editPostModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="editPostForm">
+                    <input type="hidden" id="editPostId">
+                    <div class="form-group">
+                        <label class="form-label">Title *</label>
+                        <input type="text" class="form-control" id="editTitle" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Summary *</label>
+                        <textarea class="form-control" id="editSummary" rows="4" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Categories</label>
+                        <select class="form-control" id="editCategories" multiple>
+                            <option value="Politics">Politics</option>
+                            <option value="Sports">Sports</option>
+                            <option value="Cinema">Cinema</option>
+                            <option value="Technology">Technology</option>
+                            <option value="Business">Business</option>
+                            <option value="Crime">Crime</option>
+                            <option value="General">General</option>
+                        </select>
+                        <small class="text-muted">Hold Ctrl/Cmd to select multiple</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Image URL</label>
+                        <input type="text" class="form-control" id="editImageUrl">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Source Name</label>
+                        <input type="text" class="form-control" id="editSourceName">
+                    </div>
+                    <div class="form-group">
+                        <div class="checkbox-container">
+                            <input type="checkbox" id="editIsPublished">
+                            <label for="editIsPublished">Published</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-light" onclick="hideModal('editPostModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="updatePost()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add RSS Source Modal -->
+    <div class="modal" id="addRSSModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-plus"></i> Add RSS Feed</h3>
+                <button class="btn btn-sm btn-light" onclick="hideModal('addRSSModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="addRSSForm">
+                    <div class="form-group">
+                        <label class="form-label">Feed Name *</label>
+                        <input type="text" class="form-control" id="rssName" placeholder="e.g., NTV Telugu" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">RSS URL *</label>
+                        <input type="url" class="form-control" id="rssUrl" placeholder="https://example.com/feed" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-light" onclick="hideModal('addRSSModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="addRSSSource()">Add RSS Feed</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Twitter Source Modal -->
+    <div class="modal" id="addTwitterModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-plus"></i> Add Twitter Handle</h3>
+                <button class="btn btn-sm btn-light" onclick="hideModal('addTwitterModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="addTwitterForm">
+                    <div class="form-group">
+                        <label class="form-label">Twitter Handle *</label>
+                        <div class="input-group">
+                            <span class="input-group-text">@</span>
+                            <input type="text" class="form-control" id="twitterHandle" placeholder="username" required>
+                        </div>
+                        <small class="text-muted">Enter without @ symbol</small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-light" onclick="hideModal('addTwitterModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="addTwitterSource()">Add Twitter Handle</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Source Modal -->
+    <div class="modal" id="editSourceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-edit"></i> Edit Source</h3>
+                <button class="btn btn-sm btn-light" onclick="hideModal('editSourceModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="editSourceForm">
+                    <input type="hidden" id="editSourceId">
+                    <input type="hidden" id="editSourceType">
+                    <div class="form-group" id="editSourceNameGroup">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-control" id="editSourceNameInput">
+                    </div>
+                    <div class="form-group" id="editSourceUrlGroup">
+                        <label class="form-label">URL</label>
+                        <input type="url" class="form-control" id="editSourceUrl">
+                    </div>
+                    <div class="form-group" id="editSourceHandleGroup">
+                        <label class="form-label">Twitter Handle</label>
+                        <input type="text" class="form-control" id="editSourceHandle">
+                    </div>
+                    <div class="form-group">
+                        <div class="checkbox-container">
+                            <input type="checkbox" id="editSourceActive">
+                            <label for="editSourceActive">Active</label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-light" onclick="hideModal('editSourceModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="updateSource()">Save Changes</button>
+                <button class="btn btn-danger" onclick="deleteSource()">Delete</button>
+            </div>
+        </div>
+    </div>
+    
     <script>
+        // Extract the JavaScript into a separate script block
         let categoryChart = null;
         let currentSection = 'dashboard';
         let currentPage = 1;
+        let selectedPosts = new Set();
+        let debounceTimer;
+        let parsedPayload = [];
         
         // Mobile menu toggle
         document.getElementById('menuToggle').addEventListener('click', function() {
@@ -1670,6 +2411,10 @@ app.get("/dashboard", (req, res) => {
                 loadPosts();
             } else if (section === 'queue') {
                 loadQueue();
+            } else if (section === 'rss') {
+                loadRSSSources();
+            } else if (section === 'twitter') {
+                loadTwitterSources();
             }
             
             // Close mobile menu
@@ -1696,6 +2441,40 @@ app.get("/dashboard", (req, res) => {
         function showAddUrlModal() {
             document.getElementById('addUrlForm').reset();
             showModal('addUrlModal');
+        }
+        
+        // Show smart parser modal
+        function showSmartParserModal() {
+            document.getElementById('rawInput').value = '';
+            document.getElementById('previewArea').innerText = 'Parse and preview will appear here...';
+            document.getElementById('uploadBtn').disabled = true;
+            document.getElementById('uploadBtn').innerHTML = '<i class="fas fa-upload"></i> Upload to Database';
+            document.getElementById('parserStatus').innerHTML = '';
+            showModal('smartParserModal');
+        }
+        
+        // Show add RSS modal
+        function showAddRSSModal() {
+            document.getElementById('addRSSForm').reset();
+            showModal('addRSSModal');
+        }
+        
+        // Show add Twitter modal
+        function showAddTwitterModal() {
+            document.getElementById('addTwitterForm').reset();
+            showModal('addTwitterModal');
+        }
+        
+        // Show edit post modal
+        function showEditPostModal(postId) {
+            fetchPostDetails(postId);
+            showModal('editPostModal');
+        }
+        
+        // Show edit source modal
+        function showEditSourceModal(sourceId, type) {
+            fetchSourceDetails(sourceId, type);
+            showModal('editSourceModal');
         }
         
         // Fetch dashboard stats
@@ -1729,23 +2508,30 @@ app.get("/dashboard", (req, res) => {
             // Update recent posts
             const recentPostsContainer = document.getElementById('recent-posts');
             if (stats.recentPosts && stats.recentPosts.length > 0) {
-                recentPostsContainer.innerHTML = stats.recentPosts.map(post => \`
+                let html = '';
+                stats.recentPosts.forEach(post => {
+                    html += \`
                     <div class="queue-item">
                         <div class="queue-content">
                             <div class="queue-title">\${post.title.substring(0, 100)}\${post.title.length > 100 ? '...' : ''}</div>
                             <div class="queue-meta">
                                 <span><i class="fas fa-source"></i> \${post.sourceName || 'Unknown'}</span>
                                 <span><i class="fas fa-clock"></i> \${new Date(post.publishedAt).toLocaleDateString()}</span>
+                                <span class="badge \${post.isPublished ? 'badge-published' : 'badge-unpublished'}">
+                                    \${post.isPublished ? 'Published' : 'Unpublished'}
+                                </span>
                                 <span class="badge badge-primary">\${post.categories && post.categories[0] ? post.categories[0] : 'General'}</span>
                             </div>
                         </div>
                         <div class="queue-actions">
-                            <button class="btn btn-sm btn-light" onclick="viewPost('\${post._id}')">
-                                <i class="fas fa-eye"></i>
+                            <button class="btn btn-sm btn-light" onclick="togglePostPublish('\${post.postId}', \${post.isPublished})">
+                                <i class="fas fa-power-off"></i>
                             </button>
                         </div>
                     </div>
-                \`).join('');
+                    \`;
+                });
+                recentPostsContainer.innerHTML = html;
             } else {
                 recentPostsContainer.innerHTML = '<div class="queue-item">No recent posts</div>';
             }
@@ -1802,9 +2588,16 @@ app.get("/dashboard", (req, res) => {
         async function loadPosts(page = 1) {
             currentPage = page;
             const category = document.getElementById('category-filter').value;
+            const status = document.getElementById('status-filter').value;
+            const search = document.getElementById('search-posts').value;
             
             try {
-                const response = await fetch(\`/api/posts?page=\${page}&limit=20&category=\${category}\`);
+                let url = \`/api/posts?page=\${page}&limit=20&category=\${category}&status=\${status}\`;
+                if (search) {
+                    url += \`&search=\${encodeURIComponent(search)}\`;
+                }
+                
+                const response = await fetch(url);
                 const data = await response.json();
                 
                 if (data.success) {
@@ -1824,7 +2617,7 @@ app.get("/dashboard", (req, res) => {
             if (posts.length === 0) {
                 postsList.innerHTML = \`
                     <tr>
-                        <td colspan="5" style="text-align: center; padding: 2rem;">
+                        <td colspan="7" style="text-align: center; padding: 2rem;">
                             <i class="fas fa-newspaper" style="font-size: 2rem; color: #ddd; margin-bottom: 1rem;"></i>
                             <p>No posts found</p>
                         </td>
@@ -1834,8 +2627,14 @@ app.get("/dashboard", (req, res) => {
                 return;
             }
             
-            postsList.innerHTML = posts.map(post => \`
+            let html = '';
+            posts.forEach(post => {
+                html += \`
                 <tr>
+                    <td>
+                        <input type="checkbox" class="post-checkbox" value="\${post.postId}" 
+                               onchange="updateSelection('\${post.postId}', this.checked)">
+                    </td>
                     <td style="max-width: 300px;">
                         <div style="font-weight: 500; margin-bottom: 0.25rem;">\${post.title.substring(0, 80)}\${post.title.length > 80 ? '...' : ''}</div>
                         <div style="font-size: 0.75rem; color: #666;">\${post.summary ? post.summary.substring(0, 100) + '...' : ''}</div>
@@ -1844,17 +2643,29 @@ app.get("/dashboard", (req, res) => {
                         <span class="badge badge-primary">\${post.categories && post.categories[0] ? post.categories[0] : 'General'}</span>
                     </td>
                     <td>\${post.sourceName || 'Unknown'}</td>
+                    <td>
+                        <span class="badge \${post.isPublished ? 'badge-published' : 'badge-unpublished'}">
+                            \${post.isPublished ? 'Published' : 'Unpublished'}
+                        </span>
+                    </td>
                     <td>\${new Date(post.publishedAt).toLocaleDateString()}</td>
                     <td>
-                        <button class="btn btn-sm btn-light" onclick="viewPost('\${post._id}')">
-                            <i class="fas fa-eye"></i> View
-                        </button>
-                        <button class="btn btn-sm btn-danger" onclick="deletePost('\${post._id}')">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                        <div class="post-actions">
+                            <button class="btn btn-sm btn-light" onclick="togglePostPublish('\${post.postId}', \${post.isPublished})">
+                                <i class="fas fa-power-off"></i>
+                            </button>
+                            <button class="btn btn-sm btn-primary" onclick="showEditPostModal('\${post.postId}')">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deletePost('\${post.postId}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>
-            \`).join('');
+                \`;
+            });
+            postsList.innerHTML = html;
             
             // Generate pagination
             let paginationHTML = '';
@@ -1915,9 +2726,10 @@ app.get("/dashboard", (req, res) => {
                 return;
             }
             
-            queueContainer.innerHTML = queue.map(item => {
+            let html = '';
+            queue.forEach(item => {
                 const title = item.text ? (item.text.split('\\n')[0] || item.text).substring(0, 120) : 'No title';
-                return \`
+                html += \`
                     <div class="card" style="margin-bottom: 1rem;">
                         <div class="queue-item">
                             <div class="queue-content">
@@ -1935,7 +2747,121 @@ app.get("/dashboard", (req, res) => {
                         </div>
                     </div>
                 \`;
-            }).join('');
+            });
+            queueContainer.innerHTML = html;
+        }
+        
+        // Load RSS sources
+        async function loadRSSSources() {
+            try {
+                const response = await fetch('/api/rss-sources');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateRSSSourcesList(data.sources);
+                }
+            } catch (error) {
+                console.error('Failed to load RSS sources:', error);
+                showNotification('Error loading RSS sources', 'error');
+            }
+        }
+        
+        // Update RSS sources list
+        function updateRSSSourcesList(sources) {
+            const sourcesList = document.getElementById('rss-sources-list');
+            
+            if (sources.length === 0) {
+                sourcesList.innerHTML = \`
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 2rem;">
+                            <i class="fas fa-rss" style="font-size: 2rem; color: #ddd; margin-bottom: 1rem;"></i>
+                            <p>No RSS feeds added yet</p>
+                        </td>
+                    </tr>
+                \`;
+                return;
+            }
+            
+            let html = '';
+            sources.forEach(source => {
+                html += \`
+                <tr>
+                    <td>\${source.name}</td>
+                    <td><small>\${source.url}</small></td>
+                    <td>
+                        <span class="status-indicator \${source.isActive ? 'status-active' : 'status-inactive'}"></span>
+                        <span class="badge \${source.isActive ? 'badge-success' : 'badge-danger'}">
+                            \${source.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                    <td>\${new Date(source.addedAt).toLocaleDateString()}</td>
+                    <td>
+                        <div class="post-actions">
+                            <button class="btn btn-sm btn-primary" onclick="showEditSourceModal('\${source._id}', 'rss')">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                \`;
+            });
+            sourcesList.innerHTML = html;
+        }
+        
+        // Load Twitter sources
+        async function loadTwitterSources() {
+            try {
+                const response = await fetch('/api/twitter-sources');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateTwitterSourcesList(data.sources);
+                }
+            } catch (error) {
+                console.error('Failed to load Twitter sources:', error);
+                showNotification('Error loading Twitter sources', 'error');
+            }
+        }
+        
+        // Update Twitter sources list
+        function updateTwitterSourcesList(sources) {
+            const sourcesList = document.getElementById('twitter-sources-list');
+            
+            if (sources.length === 0) {
+                sourcesList.innerHTML = \`
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 2rem;">
+                            <i class="fab fa-twitter" style="font-size: 2rem; color: #ddd; margin-bottom: 1rem;"></i>
+                            <p>No Twitter handles added yet</p>
+                        </td>
+                    </tr>
+                \`;
+                return;
+            }
+            
+            let html = '';
+            sources.forEach(source => {
+                html += \`
+                <tr>
+                    <td>@\${source.handle}</td>
+                    <td>
+                        <span class="status-indicator \${source.isActive ? 'status-active' : 'status-inactive'}"></span>
+                        <span class="badge \${source.isActive ? 'badge-success' : 'badge-danger'}">
+                            \${source.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                    </td>
+                    <td>\${new Date(source.addedAt).toLocaleDateString()}</td>
+                    <td>
+                        <div class="post-actions">
+                            <button class="btn btn-sm btn-primary" onclick="showEditSourceModal('\${source._id}', 'twitter')">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                \`;
+            });
+            sourcesList.innerHTML = html;
         }
         
         // Add text to queue
@@ -2022,6 +2948,514 @@ app.get("/dashboard", (req, res) => {
             }
         }
         
+        // Smart Parser Functions
+        function parseAndPreview() {
+            let rawText = document.getElementById('rawInput').value;
+            const imageUrl = document.getElementById('parserImageUrl').value;
+
+            if (!rawText.trim()) {
+                showNotification("Please paste text first.", 'warning');
+                return;
+            }
+
+            // 1. Remove "(Main Summary)", "(Related Summary)" tags
+            rawText = rawText.replace(/\\(Main Summary\\)/gi, '')
+                             .replace(/\\(Related Summary.*?\\)/gi, '');
+
+            // 2. Fix Double Newlines (Clean up empty gaps)
+            rawText = rawText.replace(/\\n\\s*\\n/g, '\\n');
+
+            // 3. FORCE SPLIT: Main Title vs Body
+            rawText = rawText.replace(/\\[Image\\]/gi, '\\n');
+
+            // 4. FORCE SPLIT: Related Stories
+            rawText = rawText.replace(/\\.\\.\\s+/g, '\\n');
+            rawText = rawText.replace(/:\\s+/g, '\\n');
+
+            // 5. SPLIT BLOCKS
+            const lines = rawText.split('\\n').map(l => l.trim()).filter(l => l.length > 0);
+
+            if (lines.length < 2) {
+                showNotification("Could not detect separate lines. Did you format the text?", 'error');
+                return;
+            }
+
+            // Construct JSON
+            const mainTitle = lines[0];
+            const mainSummary = lines[1];
+
+            const relatedStories = [];
+
+            // Loop through the rest of the lines in pairs (Title, Summary)
+            for (let i = 2; i < lines.length; i += 2) {
+                const rTitle = lines[i];
+                const rSummary = (i + 1 < lines.length) ? lines[i+1] : "";
+
+                if (rTitle) {
+                    relatedStories.push({
+                        title: rTitle,
+                        summary: rSummary,
+                        imageUrl: imageUrl 
+                    });
+                }
+            }
+
+            parsedPayload = [{
+                title: mainTitle,
+                summary: mainSummary,
+                imageUrl: imageUrl,
+                source: "Manual",
+                sourceName: "Manual Parser",
+                sourceType: "manual",
+                categories: ["General"],
+                relatedStories: relatedStories
+            }];
+
+            // Show Preview
+            const previewEl = document.getElementById('previewArea');
+            previewEl.innerText = JSON.stringify(parsedPayload, null, 4);
+            
+            const btn = document.getElementById('uploadBtn');
+            btn.innerText = \`Upload (\${1 + relatedStories.length} Items)\`;
+            btn.disabled = false;
+        }
+
+        async function uploadParsedToDB() {
+            const statusDiv = document.getElementById('parserStatus');
+            const btn = document.getElementById('uploadBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+
+            try {
+                const response = await fetch('/api/create-manual-posts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(parsedPayload)
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) throw new Error(result.error);
+                
+                statusDiv.className = 'success';
+                statusDiv.innerHTML = \`<div style="background: #d1fae5; color: #065f46; padding: 1rem; border-radius: 6px;">
+                    <i class="fas fa-check-circle"></i> Success! Created \${result.count} posts.
+                </div>\`;
+                
+                // Reset form
+                setTimeout(() => {
+                    hideModal('smartParserModal');
+                    refreshDashboard();
+                    if (currentSection === 'posts') {
+                        loadPosts();
+                    }
+                }, 2000);
+                
+            } catch (error) {
+                statusDiv.className = 'error';
+                statusDiv.innerHTML = \`<div style="background: #fee2e2; color: #991b1b; padding: 1rem; border-radius: 6px;">
+                    <i class="fas fa-exclamation-circle"></i> Error: \${error.message}
+                </div>\`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-upload"></i> Upload to Database';
+            }
+        }
+        
+        // Add RSS source
+        async function addRSSSource() {
+            const name = document.getElementById('rssName').value;
+            const url = document.getElementById('rssUrl').value;
+            
+            if (!name || !url) {
+                showNotification('Name and URL are required', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/rss-sources', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name, url })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification('RSS source added successfully!', 'success');
+                    hideModal('addRSSModal');
+                    loadRSSSources();
+                } else {
+                    showNotification(data.error || 'Failed to add RSS source', 'error');
+                }
+            } catch (error) {
+                showNotification('Error adding RSS source: ' + error.message, 'error');
+            }
+        }
+        
+        // Add Twitter source
+        async function addTwitterSource() {
+            const handle = document.getElementById('twitterHandle').value;
+            
+            if (!handle) {
+                showNotification('Twitter handle is required', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/twitter-sources', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ handle })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification('Twitter source added successfully!', 'success');
+                    hideModal('addTwitterModal');
+                    loadTwitterSources();
+                } else {
+                    showNotification(data.error || 'Failed to add Twitter source', 'error');
+                }
+            } catch (error) {
+                showNotification('Error adding Twitter source: ' + error.message, 'error');
+            }
+        }
+        
+        // Fetch post details for editing
+        async function fetchPostDetails(postId) {
+            try {
+                const response = await fetch('/api/posts/' + postId);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const post = data.post;
+                    document.getElementById('editPostId').value = postId;
+                    document.getElementById('editTitle').value = post.title;
+                    document.getElementById('editSummary').value = post.summary;
+                    document.getElementById('editImageUrl').value = post.imageUrl || '';
+                    document.getElementById('editSourceName').value = post.sourceName || '';
+                    document.getElementById('editIsPublished').checked = post.isPublished;
+                    
+                    // Set categories
+                    const categoriesSelect = document.getElementById('editCategories');
+                    Array.from(categoriesSelect.options).forEach(option => {
+                        option.selected = post.categories && post.categories.includes(option.value);
+                    });
+                }
+            } catch (error) {
+                showNotification('Error loading post details', 'error');
+            }
+        }
+        
+        // Update post
+        async function updatePost() {
+            const postId = document.getElementById('editPostId').value;
+            const title = document.getElementById('editTitle').value;
+            const summary = document.getElementById('editSummary').value;
+            const imageUrl = document.getElementById('editImageUrl').value;
+            const sourceName = document.getElementById('editSourceName').value;
+            const isPublished = document.getElementById('editIsPublished').checked;
+            
+            const categoriesSelect = document.getElementById('editCategories');
+            const categories = Array.from(categoriesSelect.selectedOptions).map(option => option.value);
+            
+            if (!title || !summary) {
+                showNotification('Title and summary are required', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/posts/' + postId, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title,
+                        summary,
+                        categories,
+                        isPublished,
+                        imageUrl,
+                        sourceName
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification('Post updated successfully!', 'success');
+                    hideModal('editPostModal');
+                    refreshDashboard();
+                    if (currentSection === 'posts') {
+                        loadPosts(currentPage);
+                    }
+                } else {
+                    showNotification(data.error || 'Failed to update post', 'error');
+                }
+            } catch (error) {
+                showNotification('Error updating post: ' + error.message, 'error');
+            }
+        }
+        
+        // Toggle post publish status
+        async function togglePostPublish(postId, currentStatus) {
+            try {
+                const response = await fetch('/api/posts/' + postId + '/toggle-publish', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification('Post ' + (data.isPublished ? 'published' : 'unpublished') + ' successfully!', 'success');
+                    refreshDashboard();
+                    if (currentSection === 'posts') {
+                        loadPosts(currentPage);
+                    }
+                }
+            } catch (error) {
+                showNotification('Error toggling post status', 'error');
+            }
+        }
+        
+        // Delete post
+        async function deletePost(postId) {
+            if (!confirm('Are you sure you want to delete this post?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/posts/' + postId, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification('Post deleted successfully', 'success');
+                    refreshDashboard();
+                    if (currentSection === 'posts') {
+                        loadPosts(currentPage);
+                    }
+                }
+            } catch (error) {
+                showNotification('Error deleting post', 'error');
+            }
+        }
+        
+        // Fetch source details for editing
+        async function fetchSourceDetails(sourceId, type) {
+            try {
+                const endpoint = type === 'rss' ? '/api/rss-sources' : '/api/twitter-sources';
+                const response = await fetch(endpoint);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const source = data.sources.find(s => s._id === sourceId);
+                    if (source) {
+                        document.getElementById('editSourceId').value = sourceId;
+                        document.getElementById('editSourceType').value = type;
+                        document.getElementById('editSourceActive').checked = source.isActive;
+                        
+                        if (type === 'rss') {
+                            document.getElementById('editSourceNameGroup').style.display = 'block';
+                            document.getElementById('editSourceUrlGroup').style.display = 'block';
+                            document.getElementById('editSourceHandleGroup').style.display = 'none';
+                            document.getElementById('editSourceNameInput').value = source.name;
+                            document.getElementById('editSourceUrl').value = source.url;
+                        } else {
+                            document.getElementById('editSourceNameGroup').style.display = 'none';
+                            document.getElementById('editSourceUrlGroup').style.display = 'none';
+                            document.getElementById('editSourceHandleGroup').style.display = 'block';
+                            document.getElementById('editSourceHandle').value = source.handle;
+                        }
+                    }
+                }
+            } catch (error) {
+                showNotification('Error loading source details', 'error');
+            }
+        }
+        
+        // Update source
+        async function updateSource() {
+            const sourceId = document.getElementById('editSourceId').value;
+            const type = document.getElementById('editSourceType').value;
+            const isActive = document.getElementById('editSourceActive').checked;
+            
+            let updateData = { isActive };
+            
+            if (type === 'rss') {
+                updateData.name = document.getElementById('editSourceNameInput').value;
+                updateData.url = document.getElementById('editSourceUrl').value;
+            } else {
+                updateData.handle = document.getElementById('editSourceHandle').value;
+            }
+            
+            try {
+                const endpoint = '/api/' + type + '-sources/' + sourceId;
+                const response = await fetch(endpoint, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updateData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification('Source updated successfully!', 'success');
+                    hideModal('editSourceModal');
+                    
+                    if (type === 'rss') {
+                        loadRSSSources();
+                    } else {
+                        loadTwitterSources();
+                    }
+                } else {
+                    showNotification(data.error || 'Failed to update source', 'error');
+                }
+            } catch (error) {
+                showNotification('Error updating source: ' + error.message, 'error');
+            }
+        }
+        
+        // Delete source
+        async function deleteSource() {
+            const sourceId = document.getElementById('editSourceId').value;
+            const type = document.getElementById('editSourceType').value;
+            
+            if (!confirm('Are you sure you want to delete this source?')) {
+                return;
+            }
+            
+            try {
+                const endpoint = '/api/' + type + '-sources/' + sourceId;
+                const response = await fetch(endpoint, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification('Source deleted successfully', 'success');
+                    hideModal('editSourceModal');
+                    
+                    if (type === 'rss') {
+                        loadRSSSources();
+                    } else {
+                        loadTwitterSources();
+                    }
+                }
+            } catch (error) {
+                showNotification('Error deleting source', 'error');
+            }
+        }
+        
+        // Bulk selection functions
+        function updateSelection(postId, isChecked) {
+            if (isChecked) {
+                selectedPosts.add(postId);
+            } else {
+                selectedPosts.delete(postId);
+                document.getElementById('selectAll').checked = false;
+            }
+            
+            updateBulkActions();
+        }
+        
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll').checked;
+            const checkboxes = document.querySelectorAll('.post-checkbox');
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAll;
+                updateSelection(checkbox.value, selectAll);
+            });
+        }
+        
+        function updateBulkActions() {
+            const bulkActions = document.getElementById('bulkActions');
+            const selectedCount = document.getElementById('selectedCount');
+            
+            selectedCount.textContent = selectedPosts.size;
+            
+            if (selectedPosts.size > 0) {
+                bulkActions.classList.add('active');
+            } else {
+                bulkActions.classList.remove('active');
+            }
+        }
+        
+        function clearSelection() {
+            selectedPosts.clear();
+            const checkboxes = document.querySelectorAll('.post-checkbox');
+            checkboxes.forEach(checkbox => checkbox.checked = false);
+            document.getElementById('selectAll').checked = false;
+            updateBulkActions();
+        }
+        
+        async function performBulkAction() {
+            const action = document.getElementById('bulkActionSelect').value;
+            
+            if (!action) {
+                showNotification('Please select an action', 'warning');
+                return;
+            }
+            
+            if (selectedPosts.size === 0) {
+                showNotification('No posts selected', 'warning');
+                return;
+            }
+            
+            const postIds = Array.from(selectedPosts);
+            if (!confirm('Are you sure you want to ' + action + ' ' + selectedPosts.size + ' posts?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/posts/bulk-update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        postIds: postIds,
+                        action: action
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    clearSelection();
+                    refreshDashboard();
+                    if (currentSection === 'posts') {
+                        loadPosts(currentPage);
+                    }
+                } else {
+                    showNotification(data.error || 'Failed to perform bulk action', 'error');
+                }
+            } catch (error) {
+                showNotification('Error performing bulk action: ' + error.message, 'error');
+            }
+        }
+        
+        // Debounced search
+        function debouncedSearch() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                loadPosts(1);
+            }, 500);
+        }
+        
         // Trigger RSS fetch
         async function triggerRSSFetch() {
             try {
@@ -2029,8 +3463,11 @@ app.get("/dashboard", (req, res) => {
                 const data = await response.json();
                 
                 if (data.success) {
-                    showNotification(\`RSS fetch completed! Queued \${data.queued_count} items.\`, 'success');
+                    showNotification('RSS fetch completed! Queued ' + data.queued_count + ' items.', 'success');
                     refreshDashboard();
+                    if (currentSection === 'queue') {
+                        loadQueue();
+                    }
                 }
             } catch (error) {
                 showNotification('Error triggering RSS fetch', 'error');
@@ -2044,22 +3481,14 @@ app.get("/dashboard", (req, res) => {
                 const data = await response.json();
                 
                 if (data.success) {
-                    showNotification(\`Twitter fetch completed! Queued \${data.queued_total} items.\`, 'success');
+                    showNotification('Twitter fetch completed! Queued ' + data.queued_total + ' items.', 'success');
                     refreshDashboard();
+                    if (currentSection === 'queue') {
+                        loadQueue();
+                    }
                 }
             } catch (error) {
                 showNotification('Error triggering Twitter fetch', 'error');
-            }
-        }
-        
-        // Fetch single Twitter handle
-        async function fetchSingleHandle(handle) {
-            try {
-                // This would need a separate endpoint, using the general one for now
-                showNotification(\`Fetching tweets from @\${handle}...\`, 'info');
-                await triggerTwitterFetch();
-            } catch (error) {
-                showNotification('Error fetching tweets', 'error');
             }
         }
         
@@ -2097,7 +3526,7 @@ app.get("/dashboard", (req, res) => {
             }
             
             try {
-                const response = await fetch(\`/api/queue/\${id}\`, {
+                const response = await fetch('/api/queue/' + id, {
                     method: 'DELETE'
                 });
                 
@@ -2113,35 +3542,6 @@ app.get("/dashboard", (req, res) => {
             }
         }
         
-        // View post
-        function viewPost(id) {
-            // In a real app, this would open a detailed view
-            alert('View post feature would open detailed view for ID: ' + id);
-        }
-        
-        // Delete post
-        async function deletePost(id) {
-            if (!confirm('Are you sure you want to delete this post?')) {
-                return;
-            }
-            
-            try {
-                const response = await fetch(\`/api/posts/\${id}\`, {
-                    method: 'DELETE'
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    showNotification('Post deleted successfully', 'success');
-                    loadPosts(currentPage);
-                    refreshDashboard();
-                }
-            } catch (error) {
-                showNotification('Error deleting post', 'error');
-            }
-        }
-        
         // Show notification
         function showNotification(message, type = 'info') {
             // Remove existing notifications
@@ -2150,11 +3550,26 @@ app.get("/dashboard", (req, res) => {
             
             // Create notification
             const notification = document.createElement('div');
-            notification.className = \`notification \${type}\`;
+            notification.className = 'notification ' + type;
+            
+            let backgroundColor = '#2196F3'; // default blue
+            let icon = 'info-circle';
+            
+            if (type === 'success') {
+                backgroundColor = '#4CAF50';
+                icon = 'check-circle';
+            } else if (type === 'error') {
+                backgroundColor = '#f44336';
+                icon = 'exclamation-circle';
+            } else if (type === 'warning') {
+                backgroundColor = '#ff9800';
+                icon = 'exclamation-triangle';
+            }
+            
             notification.innerHTML = \`
-                <div style="position: fixed; top: 20px; right: 20px; background: \${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : type === 'warning' ? '#ff9800' : '#2196F3'}; color: white; padding: 1rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999; max-width: 300px;">
+                <div style="position: fixed; top: 20px; right: 20px; background: \${backgroundColor}; color: white; padding: 1rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999; max-width: 300px;">
                     <div style="display: flex; align-items: center; gap: 0.75rem;">
-                        <i class="fas fa-\${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
+                        <i class="fas fa-\${icon}"></i>
                         <span>\${message}</span>
                     </div>
                 </div>
@@ -2175,6 +3590,10 @@ app.get("/dashboard", (req, res) => {
                 loadPosts(currentPage);
             } else if (currentSection === 'queue') {
                 loadQueue();
+            } else if (currentSection === 'rss') {
+                loadRSSSources();
+            } else if (currentSection === 'twitter') {
+                loadTwitterSources();
             }
         }
         
@@ -2278,9 +3697,16 @@ cron.schedule("*/1 * * * *", async () => {
 });
 
 // --- SCHEDULERS ---
-cron.schedule("*/15 * * * *", async () => { await fetchAndQueueRSS(); });
+cron.schedule("*/15 * * * *", async () => { 
+    await loadSources(); // Reload sources before fetching
+    await fetchAndQueueRSS(); 
+});
+
 cron.schedule("*/30 * * * *", async () => {
-    for (const handle of TARGET_HANDLES) await fetchAndQueueTweetsForHandle(handle);
+    await loadSources(); // Reload sources before fetching
+    for (const handle of TARGET_HANDLES) {
+        await fetchAndQueueTweetsForHandle(handle);
+    }
 });
 
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

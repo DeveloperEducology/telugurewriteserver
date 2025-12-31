@@ -35,7 +35,6 @@ const TARGET_HANDLES = [
 const RSS_FEEDS = [
   { name: "NTV Telugu", url: "https://ntvtelugu.com/feed" },
   { name: "Disha Daily", url: "https://www.dishadaily.com/google_feeds.xml" },
-  { name: "NTV Telugu", url: "https://ntvtelugu.com/feed" },
   { name: "TV9 Telugu", url: "https://tv9telugu.com/feed" },
   // { name: "V6 Telugu", url: "https://www.v6velugu.com/feed/" },
   { name: "10TV Telugu", url: "https://10tv.in/latest/feed" },
