@@ -1,10 +1,10 @@
 {
   "name": "telugu-rewrite-server",
   "version": "1.0.0",
-  "main": "server.js",
+  "main": "dashboard.js",
   "type": "module",
   "scripts": {
-    "start": "nodemon server.js"
+    "start": "nodemon dashboard.js"
   },
   "keywords": [],
   "author": "",
