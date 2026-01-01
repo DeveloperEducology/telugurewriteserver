@@ -138,7 +138,10 @@ const postSchema = new mongoose.Schema({
     text: String,
     url: { type: String, unique: true, sparse: true },
     imageSearchSlug: { type: String, default: "" }, 
-    imageUrl: String,
+    imageUrl: {
+  type: String, 
+  default: "https://pub-463c5e524a144b19b1f98c36673af4d9.r2.dev/videos/telugu%20shorts.jpg" 
+},
     videoUrl: String,
     relatedStories: [relatedStorySchema],
 
