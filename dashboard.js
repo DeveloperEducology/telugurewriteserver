@@ -1007,7 +1007,6 @@ app.post("/api/add-rss-to-queue", async (req, res) => {
         url: item.url,
         imageUrl: item.imageUrl,
         media: mediaObj,
-        relatedStories: item.relatedStories,
         extendedEntities: { media: mediaObj }, 
         source: item.source || "Manual",
         promptType: "DETAILED",
