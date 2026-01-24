@@ -416,12 +416,17 @@ ${scrapedContext ? `Context: ${scrapedContext}` : ""}
 STRICT GUIDELINES (Way2News Style)
 =========================================
 
-1. HEADLINE (Title):
-   - Must be PUNCHY and CLICKABLE (Catchy).
-   - Structure: [statement]: [person].
-   - Example:  "కృష్ణా జలాలు వైఎస్సార్‌ పుణ్యమే: వైఎస్‌ అవినాష్‌రెడ్డి.
-   - Length: Max 8-10 words.
-   - Language: Natural spoken Telugu (Vyavaharika Bhasha).
+1. Give ONE Telugu news headline only.
+RULES (STRICT):
+Structure: [బలమైన ప్రకటన]: [వ్యక్తి పేరు]
+Word limit: 8–10 words ONLY
+Language: Natural spoken Telugu (వ్యవహారిక భాష)
+Tone: Punchy, clickable, news-style
+No extra text, no explanation, no quotes
+Colon (:) must be present
+Avoid literary or bookish Telugu
+OUTPUT FORMAT:
+👉 Just the headline. Nothing else.
 
 2. SUMMARY (Body):
    - Length: Strictly 60 to 75 words.
