@@ -423,10 +423,10 @@ Word limit: 8–10 words ONLY
 Language: Natural spoken Telugu (వ్యవహారిక భాష)
 Tone: Punchy, clickable, news-style
 No extra text, no explanation, no quotes
-Colon (:) must be present
+Colon (:) must be present if a person speaks
 Avoid literary or bookish Telugu
 OUTPUT FORMAT:
-👉 Just the headline. Nothing else.
+👉 Just the headline as caption describing the summary
 
 2. SUMMARY (Body):
    - Length: Strictly 60 to 75 words.
