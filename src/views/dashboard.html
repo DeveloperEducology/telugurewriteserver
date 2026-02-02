@@ -1,1668 +1,1806 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Telugu News Aggregator Dashboard</title>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-      }
-      :root {
-        --primary: #4361ee;
-        --primary-dark: #3a56d4;
-        --secondary: #7209b7;
-        --success: #4cc9f0;
-        --warning: #f72585;
-        --danger: #ef233c;
-        --dark: #2b2d42;
-        --light: #f8f9fa;
-        --gray: #6c757d;
-        --border: #dee2e6;
-      }
-      body {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: var(--dark);
-        min-height: 100vh;
-        padding: 0;
-        font-size: 14px;
-      }
-      .container {
-        max-width: 100%;
-        margin: 0;
-        background: var(--light);
-        min-height: 100vh;
-      }
 
-      /* Header */
-      .header {
-        background: linear-gradient(90deg, var(--dark), var(--primary-dark));
-        color: white;
-        padding: 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        position: sticky;
-        top: 0;
-        z-index: 100;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      }
-      .header-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 1rem;
-      }
-      .logo {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-      }
-      .logo h1 {
-        font-size: 1.25rem;
-        font-weight: 600;
-      }
-      .header-stats {
-        display: flex;
-        gap: 1rem;
-        font-size: 0.85rem;
-        opacity: 0.9;
-      }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Telugu News Aggregator Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+
+    :root {
+      --primary: #4361ee;
+      --primary-dark: #3a56d4;
+      --secondary: #7209b7;
+      --success: #4cc9f0;
+      --warning: #f72585;
+      --danger: #ef233c;
+      --dark: #2b2d42;
+      --light: #f8f9fa;
+      --gray: #6c757d;
+      --border: #dee2e6;
+    }
+
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: var(--dark);
+      min-height: 100vh;
+      padding: 0;
+      font-size: 14px;
+    }
+
+    .container {
+      max-width: 100%;
+      margin: 0;
+      background: var(--light);
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(90deg, var(--dark), var(--primary-dark));
+      color: white;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .header-stats {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.85rem;
+      opacity: 0.9;
+    }
+
+    .menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.25rem;
+      cursor: pointer;
+      padding: 0.5rem;
+    }
+
+    /* Layout */
+    .main-content {
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      min-height: calc(100vh - 120px);
+    }
+
+    .sidebar {
+      background: white;
+      padding: 1.5rem 1rem;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      overflow-y: auto;
+    }
+
+    .nav-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .nav-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: var(--gray);
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.5rem;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      color: var(--dark);
+      text-decoration: none;
+      border-radius: 8px;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+
+    .nav-link:hover {
+      background: rgba(67, 97, 238, 0.1);
+      color: var(--primary);
+    }
+
+    .nav-link.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .content-area {
+      padding: 1.5rem;
+      overflow-y: auto;
+      background: #f8fafc;
+    }
+
+    /* Components */
+    .content-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .controls {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 0.625rem 1.25rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      text-decoration: none;
+      color: white;
+    }
+
+    .btn-sm {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.75rem;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+    }
+
+    .btn-success {
+      background: var(--success);
+    }
+
+    .btn-warning {
+      background: var(--warning);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+    }
+
+    .btn-light {
+      background: white;
+      color: var(--dark);
+      border: 1px solid var(--border);
+    }
+
+    .btn-info {
+      background: #17a2b8;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 1.25rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      border-left: 4px solid var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .stat-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.25rem;
+    }
+
+    .stat-info h3 {
+      font-size: 1.75rem;
+      color: var(--dark);
+      margin-bottom: 0.25rem;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      margin-bottom: 1.5rem;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.25rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .table th {
+      text-align: left;
+      padding: 0.75rem;
+      background: #f8f9fa;
+      color: var(--gray);
+      font-weight: 600;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .table td {
+      padding: 1rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .table tr:hover {
+      background: #f8fafc;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge-primary {
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+
+    .badge-success {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .badge-danger {
+      background: #ffebee;
+      color: #d32f2f;
+    }
+
+    .badge-published {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .badge-unpublished {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .status-active {
+      background: #10b981;
+    }
+
+    .status-inactive {
+      background: #ef4444;
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      max-width: 600px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-lg {
+      max-width: 800px;
+    }
+
+    .modal-header,
+    .modal-footer {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      position: sticky;
+      z-index: 10;
+    }
+
+    .modal-header {
+      top: 0;
+    }
+
+    .modal-footer {
+      bottom: 0;
+      border-top: 1px solid var(--border);
+      border-bottom: none;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .modal-body {
+      padding: 1.5rem;
+      overflow-y: auto;
+    }
+
+    .queue-item {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .queue-content {
+      flex: 1;
+    }
+
+    .queue-title {
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+    }
+
+    .queue-meta {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.75rem;
+      color: var(--gray);
+    }
+
+    .queue-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .post-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .parser-container {
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 1.5rem;
+    }
+
+    .parser-input {
+      background: #1e1e1e;
+      color: #a5f3fc;
+      padding: 1rem;
+      border-radius: 6px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      max-height: 300px;
+      overflow-y: auto;
+      margin-bottom: 1rem;
+    }
+
+    @media (max-width: 768px) {
       .menu-toggle {
-        display: none;
-        background: none;
-        border: none;
-        color: white;
-        font-size: 1.25rem;
-        cursor: pointer;
-        padding: 0.5rem;
-      }
-
-      /* Layout */
-      .main-content {
-        display: grid;
-        grid-template-columns: 250px 1fr;
-        min-height: calc(100vh - 120px);
-      }
-      .sidebar {
-        background: white;
-        padding: 1.5rem 1rem;
-        border-right: 1px solid var(--border);
-        display: flex;
-        flex-direction: column;
-        gap: 1.5rem;
-        overflow-y: auto;
-      }
-      .nav-section {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-      .nav-title {
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        color: var(--gray);
-        font-weight: 600;
-        letter-spacing: 0.5px;
-        margin-bottom: 0.5rem;
-      }
-      .nav-link {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.75rem 1rem;
-        color: var(--dark);
-        text-decoration: none;
-        border-radius: 8px;
-        transition: all 0.2s;
-        font-weight: 500;
-      }
-      .nav-link:hover {
-        background: rgba(67, 97, 238, 0.1);
-        color: var(--primary);
-      }
-      .nav-link.active {
-        background: var(--primary);
-        color: white;
-      }
-      .content-area {
-        padding: 1.5rem;
-        overflow-y: auto;
-        background: #f8fafc;
-      }
-
-      /* Components */
-      .content-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.5rem;
-        flex-wrap: wrap;
-        gap: 1rem;
-      }
-      .controls {
-        display: flex;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-      }
-      .btn {
-        padding: 0.625rem 1.25rem;
-        border: none;
-        border-radius: 8px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.875rem;
-        text-decoration: none;
-        color: white;
-      }
-      .btn-sm {
-        padding: 0.4rem 0.8rem;
-        font-size: 0.75rem;
-      }
-      .btn-primary {
-        background: var(--primary);
-      }
-      .btn-success {
-        background: var(--success);
-      }
-      .btn-warning {
-        background: var(--warning);
-      }
-      .btn-danger {
-        background: var(--danger);
-      }
-      .btn-light {
-        background: white;
-        color: var(--dark);
-        border: 1px solid var(--border);
-      }
-      .btn-info {
-        background: #17a2b8;
-      }
-
-      .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-        margin-bottom: 2rem;
-      }
-      .stat-card {
-        background: white;
-        padding: 1.25rem;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-        border-left: 4px solid var(--primary);
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-      }
-      .stat-icon {
-        width: 48px;
-        height: 48px;
-        background: linear-gradient(135deg, var(--primary), var(--secondary));
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 1.25rem;
-      }
-      .stat-info h3 {
-        font-size: 1.75rem;
-        color: var(--dark);
-        margin-bottom: 0.25rem;
-      }
-
-      .card {
-        background: white;
-        border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-        margin-bottom: 1.5rem;
-      }
-      .card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.25rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid var(--border);
-      }
-
-      .table {
-        width: 100%;
-        border-collapse: collapse;
-      }
-      .table th {
-        text-align: left;
-        padding: 0.75rem;
-        background: #f8f9fa;
-        color: var(--gray);
-        font-weight: 600;
-        border-bottom: 2px solid var(--border);
-      }
-      .table td {
-        padding: 1rem 0.75rem;
-        border-bottom: 1px solid var(--border);
-      }
-      .table tr:hover {
-        background: #f8fafc;
-      }
-
-      .badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-      }
-      .badge-primary {
-        background: #e3f2fd;
-        color: #1976d2;
-      }
-      .badge-success {
-        background: #e8f5e9;
-        color: #2e7d32;
-      }
-      .badge-danger {
-        background: #ffebee;
-        color: #d32f2f;
-      }
-      .badge-published {
-        background: #d1fae5;
-        color: #065f46;
-      }
-      .badge-unpublished {
-        background: #fee2e2;
-        color: #991b1b;
-      }
-      .status-active {
-        background: #10b981;
-      }
-      .status-inactive {
-        background: #ef4444;
-      }
-      .status-indicator {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        margin-right: 6px;
-      }
-
-      .form-group {
-        margin-bottom: 1rem;
-      }
-      .form-label {
         display: block;
-        margin-bottom: 0.5rem;
-        font-weight: 500;
-      }
-      .form-control {
-        width: 100%;
-        padding: 0.75rem;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-      }
-      .checkbox-container {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        cursor: pointer;
       }
 
-      .modal {
-        display: none;
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
         position: fixed;
         top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
+        left: -250px;
+        width: 250px;
+        height: 100vh;
         z-index: 1000;
-        align-items: center;
-        justify-content: center;
-        padding: 1rem;
-      }
-      .modal.active {
-        display: flex;
-      }
-      .modal-content {
-        background: white;
-        border-radius: 12px;
-        max-width: 600px;
-        width: 100%;
-        max-height: 90vh;
-        overflow-y: auto;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-      }
-      .modal-lg {
-        max-width: 800px;
-      }
-      .modal-header,
-      .modal-footer {
-        padding: 1.5rem;
-        border-bottom: 1px solid var(--border);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        background: white;
-        position: sticky;
-        z-index: 10;
-      }
-      .modal-header {
-        top: 0;
-      }
-      .modal-footer {
-        bottom: 0;
-        border-top: 1px solid var(--border);
-        border-bottom: none;
-        justify-content: flex-end;
-        gap: 10px;
-      }
-      .modal-body {
-        padding: 1.5rem;
-        overflow-y: auto;
+        transition: left 0.3s ease;
       }
 
-      .queue-item {
-        padding: 1rem;
-        border-bottom: 1px solid var(--border);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-      .queue-content {
-        flex: 1;
-      }
-      .queue-title {
-        font-weight: 500;
-        margin-bottom: 0.25rem;
-      }
-      .queue-meta {
-        display: flex;
-        gap: 1rem;
-        font-size: 0.75rem;
-        color: var(--gray);
-      }
-      .queue-actions {
-        display: flex;
-        gap: 0.5rem;
-      }
-      .post-actions {
-        display: flex;
-        gap: 0.5rem;
+      .sidebar.active {
+        left: 0;
       }
 
-      .parser-container {
-        background: #f8fafc;
-        border-radius: 8px;
-        padding: 1.5rem;
+      .header-stats {
+        display: none;
       }
-      .parser-input {
-        background: #1e1e1e;
-        color: #a5f3fc;
-        padding: 1rem;
-        border-radius: 6px;
-        font-family: monospace;
-        white-space: pre-wrap;
-        max-height: 300px;
-        overflow-y: auto;
-        margin-bottom: 1rem;
-      }
+    }
+  </style>
+</head>
 
-      @media (max-width: 768px) {
-        .menu-toggle {
-          display: block;
-        }
-        .main-content {
-          grid-template-columns: 1fr;
-        }
-        .sidebar {
-          position: fixed;
-          top: 0;
-          left: -250px;
-          width: 250px;
-          height: 100vh;
-          z-index: 1000;
-          transition: left 0.3s ease;
-        }
-        .sidebar.active {
-          left: 0;
-        }
-        .header-stats {
-          display: none;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <header class="header">
-        <div class="header-top">
-          <div class="logo">
-            <i class="fas fa-newspaper"></i>
-            <h1>Telugu News Aggregator</h1>
-          </div>
-          <div class="header-stats">
-            <span
-              ><i class="fas fa-database"></i>
-              <span id="total-posts">0</span> Posts</span
-            >
-            <span
-              ><i class="fas fa-clock"></i>
-              <span id="posts-today">0</span> Today</span
-            >
-            <span
-              ><i class="fas fa-list"></i> <span id="queue-length">0</span> in
-              Queue</span
-            >
-          </div>
-          <button class="menu-toggle" id="menuToggle">
-            <i class="fas fa-bars"></i>
-          </button>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="header-top">
+        <div class="logo">
+          <i class="fas fa-newspaper"></i>
+          <h1>Telugu News Aggregator</h1>
+        </div>
+        <div class="header-stats">
+          <span><i class="fas fa-database"></i>
+            <span id="total-posts">0</span> Posts</span>
+          <span><i class="fas fa-clock"></i>
+            <span id="posts-today">0</span> Today</span>
+          <span><i class="fas fa-list"></i> <span id="queue-length">0</span> in
+            Queue</span>
+        </div>
+        <button class="menu-toggle" id="menuToggle">
+          <i class="fas fa-bars"></i>
+        </button>
+      </div>
+
+      <div class="controls">
+        <button class="btn btn-primary" onclick="triggerRSSFetch()">
+          <i class="fas fa-rss"></i> Fetch RSS
+        </button>
+        <button class="btn btn-success" onclick="triggerTwitterFetch()">
+          <i class="fab fa-twitter"></i> Fetch Twitter
+        </button>
+        <button class="btn btn-warning" onclick="showAddTextModal()">
+          <i class="fas fa-plus"></i> Add Text
+        </button>
+        <button class="btn btn-success" onclick="showCreatePostModal()">
+          <i class="fas fa-edit"></i> Manual Entry
+        </button>
+        <button class="btn btn-info" onclick="showSmartParserModal()">
+          <i class="fas fa-magic"></i> Smart Parser
+        </button>
+        <button class="btn btn-light" onclick="refreshDashboard()">
+          <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+      </div>
+    </header>
+
+    <div class="main-content">
+      <nav class="sidebar" id="sidebar">
+        <div class="nav-section">
+          <div class="nav-title">Dashboard</div>
+          <a href="#" class="nav-link active" onclick="showSection('dashboard')">
+            <i class="fas fa-tachometer-alt"></i> Overview
+          </a>
+          <a href="#" class="nav-link" onclick="showSection('posts')">
+            <i class="fas fa-newspaper"></i> All Posts
+          </a>
+          <a href="#" class="nav-link" onclick="showSection('queue')">
+            <i class="fas fa-tasks"></i> Processing Queue
+          </a>
         </div>
 
-        <div class="controls">
-          <button class="btn btn-primary" onclick="triggerRSSFetch()">
-            <i class="fas fa-rss"></i> Fetch RSS
-          </button>
-          <button class="btn btn-success" onclick="triggerTwitterFetch()">
-            <i class="fab fa-twitter"></i> Fetch Twitter
-          </button>
-          <button class="btn btn-warning" onclick="showAddTextModal()">
-            <i class="fas fa-plus"></i> Add Text
-          </button>
-          <button class="btn btn-info" onclick="showSmartParserModal()">
+        <div class="nav-section">
+          <div class="nav-title">Sources</div>
+          <a href="#" class="nav-link" onclick="showSection('rss')">
+            <i class="fas fa-rss"></i> RSS Feeds
+          </a>
+          <a href="#" class="nav-link" onclick="showSection('twitter')">
+            <i class="fab fa-twitter"></i> Twitter Handles
+          </a>
+        </div>
+
+        <div class="nav-section">
+          <div class="nav-title">Tools</div>
+          <a href="#" class="nav-link" onclick="showAddTextModal()">
+            <i class="fas fa-edit"></i> Add Text Content
+          </a>
+          <a href="#" class="nav-link" onclick="showAddUrlModal()">
+            <i class="fas fa-link"></i> Add URL
+          </a>
+          <a href="#" class="nav-link" onclick="showSmartParserModal()">
             <i class="fas fa-magic"></i> Smart Parser
-          </button>
-          <button class="btn btn-light" onclick="refreshDashboard()">
-            <i class="fas fa-sync-alt"></i> Refresh
-          </button>
+          </a>
+          <a href="#" class="nav-link" onclick="clearQueue()">
+            <i class="fas fa-trash"></i> Clear Queue
+          </a>
         </div>
-      </header>
+      </nav>
 
-      <div class="main-content">
-        <nav class="sidebar" id="sidebar">
-          <div class="nav-section">
-            <div class="nav-title">Dashboard</div>
-            <a
-              href="#"
-              class="nav-link active"
-              onclick="showSection('dashboard')"
-            >
-              <i class="fas fa-tachometer-alt"></i> Overview
-            </a>
-            <a href="#" class="nav-link" onclick="showSection('posts')">
-              <i class="fas fa-newspaper"></i> All Posts
-            </a>
-            <a href="#" class="nav-link" onclick="showSection('queue')">
-              <i class="fas fa-tasks"></i> Processing Queue
-            </a>
+      <main class="content-area">
+        <div id="dashboard-section" class="section active">
+          <div class="content-header">
+            <h2><i class="fas fa-tachometer-alt"></i> Dashboard Overview</h2>
+            <div class="controls">
+              <button class="btn btn-sm btn-primary" onclick="refreshDashboard()">
+                <i class="fas fa-sync-alt"></i> Refresh
+              </button>
+            </div>
           </div>
 
-          <div class="nav-section">
-            <div class="nav-title">Sources</div>
-            <a href="#" class="nav-link" onclick="showSection('rss')">
-              <i class="fas fa-rss"></i> RSS Feeds
-            </a>
-            <a href="#" class="nav-link" onclick="showSection('twitter')">
-              <i class="fab fa-twitter"></i> Twitter Handles
-            </a>
-          </div>
-
-          <div class="nav-section">
-            <div class="nav-title">Tools</div>
-            <a href="#" class="nav-link" onclick="showAddTextModal()">
-              <i class="fas fa-edit"></i> Add Text Content
-            </a>
-            <a href="#" class="nav-link" onclick="showAddUrlModal()">
-              <i class="fas fa-link"></i> Add URL
-            </a>
-            <a href="#" class="nav-link" onclick="showSmartParserModal()">
-              <i class="fas fa-magic"></i> Smart Parser
-            </a>
-            <a href="#" class="nav-link" onclick="clearQueue()">
-              <i class="fas fa-trash"></i> Clear Queue
-            </a>
-          </div>
-        </nav>
-
-        <main class="content-area">
-          <div id="dashboard-section" class="section active">
-            <div class="content-header">
-              <h2><i class="fas fa-tachometer-alt"></i> Dashboard Overview</h2>
-              <div class="controls">
-                <button
-                  class="btn btn-sm btn-primary"
-                  onclick="refreshDashboard()"
-                >
-                  <i class="fas fa-sync-alt"></i> Refresh
-                </button>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon"><i class="fas fa-file-alt"></i></div>
+              <div class="stat-info">
+                <h3 id="total-posts-count">0</h3>
+                <p>Total Posts</p>
               </div>
             </div>
-
-            <div class="stats-grid">
-              <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-file-alt"></i></div>
-                <div class="stat-info">
-                  <h3 id="total-posts-count">0</h3>
-                  <p>Total Posts</p>
-                </div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-calendar-day"></i></div>
-                <div class="stat-info">
-                  <h3 id="posts-today-count">0</h3>
-                  <p>Posts Today</p>
-                </div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-tasks"></i></div>
-                <div class="stat-info">
-                  <h3 id="queue-length-count">0</h3>
-                  <p>Queue Items</p>
-                </div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-icon"><i class="fas fa-rss"></i></div>
-                <div class="stat-info">
-                  <h3 id="rss-feeds-count">0</h3>
-                  <p>RSS Feeds</p>
-                </div>
+            <div class="stat-card">
+              <div class="stat-icon"><i class="fas fa-calendar-day"></i></div>
+              <div class="stat-info">
+                <h3 id="posts-today-count">0</h3>
+                <p>Posts Today</p>
               </div>
             </div>
-
-            <div class="card">
-              <div class="card-header">
-                <h3><i class="fas fa-chart-pie"></i> Category Distribution</h3>
-              </div>
-              <div class="chart-container">
-                <canvas id="categoryChart"></canvas>
+            <div class="stat-card">
+              <div class="stat-icon"><i class="fas fa-tasks"></i></div>
+              <div class="stat-info">
+                <h3 id="queue-length-count">0</h3>
+                <p>Queue Items</p>
               </div>
             </div>
-
-            <div class="card">
-              <div class="card-header">
-                <h3><i class="fas fa-history"></i> Recent Posts</h3>
-                <a
-                  href="#"
-                  class="btn btn-sm btn-light"
-                  onclick="showSection('posts')"
-                  >View All</a
-                >
-              </div>
-              <div id="recent-posts">
-                <div class="loading">
-                  <i class="fas fa-spinner fa-spin"></i> Loading...
-                </div>
+            <div class="stat-card">
+              <div class="stat-icon"><i class="fas fa-rss"></i></div>
+              <div class="stat-info">
+                <h3 id="rss-feeds-count">0</h3>
+                <p>RSS Feeds</p>
               </div>
             </div>
           </div>
 
-          <div id="posts-section" class="section" style="display: none">
-            <div class="content-header">
-              <h2><i class="fas fa-newspaper"></i> All Posts</h2>
-              <div class="controls">
-                <select
-                  id="category-filter"
-                  class="form-control"
-                  style="width: auto"
-                  onchange="loadPosts()"
-                >
-                  <option value="all">All Categories</option>
-                  <option value="Politics">Politics</option>
-                  <option value="Sports">Sports</option>
-                  <option value="Cinema">Cinema</option>
-                  <option value="Technology">Technology</option>
-                  <option value="Business">Business</option>
-                  <option value="Crime">Crime</option>
-                  <option value="General">General</option>
-                </select>
-                <input
-                  type="text"
-                  id="search-posts"
-                  class="form-control"
-                  placeholder="Search posts..."
-                  style="width: 200px"
-                  onkeyup="debouncedSearch()"
-                />
+          <div class="card">
+            <div class="card-header">
+              <h3><i class="fas fa-chart-pie"></i> Category Distribution</h3>
+            </div>
+            <div class="chart-container">
+              <canvas id="categoryChart"></canvas>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3><i class="fas fa-history"></i> Recent Posts</h3>
+              <a href="#" class="btn btn-sm btn-light" onclick="showSection('posts')">View All</a>
+            </div>
+            <div id="recent-posts">
+              <div class="loading">
+                <i class="fas fa-spinner fa-spin"></i> Loading...
               </div>
             </div>
+          </div>
+        </div>
 
-            <div
-              class="bulk-actions"
-              id="bulkActions"
-              style="
+        <div id="posts-section" class="section" style="display: none">
+          <div class="content-header">
+            <h2><i class="fas fa-newspaper"></i> All Posts</h2>
+            <div class="controls">
+              <select id="category-filter" class="form-control" style="width: auto" onchange="loadPosts()">
+                <option value="all">All Categories</option>
+                <option value="Politics">Politics</option>
+                <option value="Sports">Sports</option>
+                <option value="Cinema">Cinema</option>
+                <option value="Technology">Technology</option>
+                <option value="Business">Business</option>
+                <option value="Crime">Crime</option>
+                <option value="General">General</option>
+              </select>
+              <input type="text" id="search-posts" class="form-control" placeholder="Search posts..."
+                style="width: 200px" onkeyup="debouncedSearch()" />
+            </div>
+          </div>
+
+          <div class="bulk-actions" id="bulkActions" style="
                 display: none;
                 background: #f8f9fa;
                 padding: 1rem;
                 margin-bottom: 1rem;
                 align-items: center;
                 gap: 1rem;
-              "
-            >
-              <div><strong id="selectedCount">0</strong> posts selected</div>
-              <select
-                id="bulkActionSelect"
-                class="form-control"
-                style="width: auto"
-              >
-                <option value="">Choose action...</option>
-                <option value="publish">Publish Selected</option>
-                <option value="unpublish">Unpublish Selected</option>
-                <option value="delete">Delete Selected</option>
-              </select>
-              <button
-                class="btn btn-sm btn-primary"
-                onclick="performBulkAction()"
-              >
-                Apply
-              </button>
-              <button class="btn btn-sm btn-light" onclick="clearSelection()">
-                Clear
-              </button>
-            </div>
-
-            <div class="table-responsive">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th style="width: 30px">
-                      <input
-                        type="checkbox"
-                        id="selectAll"
-                        onchange="toggleSelectAll()"
-                      />
-                    </th>
-                    <th>Title</th>
-                    <th>Category</th>
-                    <th>Source</th>
-                    <th>Status</th>
-                    <th>Published</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="posts-list">
-                  <tr>
-                    <td colspan="7" class="loading">Loading posts...</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div
-              id="pagination"
-              style="text-align: center; margin-top: 1rem"
-            ></div>
-          </div>
-
-          <div id="queue-section" class="section" style="display: none">
-            <div class="content-header">
-              <h2><i class="fas fa-tasks"></i> Processing Queue</h2>
-              <div class="controls">
-                <button class="btn btn-sm btn-danger" onclick="clearQueue()">
-                  <i class="fas fa-trash"></i> Clear All
-                </button>
-              </div>
-            </div>
-            <div id="queue-items">
-              <div class="loading">Loading queue items...</div>
-            </div>
-          </div>
-
-          <div id="rss-section" class="section" style="display: none">
-            <div class="content-header">
-              <h2><i class="fas fa-rss"></i> RSS Feeds Management</h2>
-              <div class="controls">
-                <button class="btn btn-primary" onclick="showAddRSSModal()">
-                  <i class="fas fa-plus"></i> Add RSS
-                </button>
-                <button class="btn btn-success" onclick="triggerRSSFetch()">
-                  <i class="fas fa-sync-alt"></i> Fetch Now
-                </button>
-              </div>
-            </div>
-            <div class="card">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>URL</th>
-                    <th>Status</th>
-                    <th>Added</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="rss-sources-list">
-                  <tr>
-                    <td colspan="5">Loading...</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div id="twitter-section" class="section" style="display: none">
-            <div class="content-header">
-              <h2><i class="fab fa-twitter"></i> Twitter Handles Management</h2>
-              <div class="controls">
-                <button class="btn btn-primary" onclick="showAddTwitterModal()">
-                  <i class="fas fa-plus"></i> Add Twitter
-                </button>
-                <button class="btn btn-success" onclick="triggerTwitterFetch()">
-                  <i class="fas fa-sync-alt"></i> Fetch Now
-                </button>
-              </div>
-            </div>
-            <div class="card">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>Handle</th>
-                    <th>Status</th>
-                    <th>Added</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="twitter-sources-list">
-                  <tr>
-                    <td colspan="4">Loading...</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </main>
-      </div>
-    </div>
-
-    <div class="modal" id="addTextModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Add Text</h3>
-          <button class="btn btn-light" onclick="hideModal('addTextModal')">
-            X
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label">Title (Optional)</label
-            ><input type="text" class="form-control" id="textTitle" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Content *</label
-            ><textarea
-              class="form-control"
-              id="textContent"
-              style="height: 120px"
-            ></textarea>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Source</label
-            ><input
-              type="text"
-              class="form-control"
-              id="textSource"
-              placeholder="Manual"
-            />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-primary" onclick="addTextToQueue()">
-            Add to Queue
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div class="modal" id="addUrlModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Add URL</h3>
-          <button class="btn btn-light" onclick="hideModal('addUrlModal')">
-            X
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label">URL *</label
-            ><input type="url" class="form-control" id="urlInput" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Title</label
-            ><input type="text" class="form-control" id="urlTitle" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Content (Opt)</label
-            ><textarea class="form-control" id="urlContent"></textarea>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Source</label
-            ><input type="text" class="form-control" id="urlSource" />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-primary" onclick="addUrlToQueue()">
-            Add to Queue
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div class="modal" id="smartParserModal">
-      <div class="modal-content modal-lg">
-        <div class="modal-header">
-          <h3>Smart Parser V3</h3>
-          <button class="btn btn-light" onclick="hideModal('smartParserModal')">
-            X
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="parser-container">
-            <div class="form-group">
-              <label class="form-label">Image URL</label
-              ><input
-                type="text"
-                class="form-control"
-                id="parserImageUrl"
-                value="https://cdn.siasat.com/wp-content/uploads/2022/02/KCR_1.jpg"
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Paste Telugu Text Block</label
-              ><textarea
-                class="form-control"
-                id="rawInput"
-                rows="10"
-              ></textarea>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Preview</label>
-              <div class="parser-input" id="previewArea"></div>
-            </div>
-            <div id="parserStatus"></div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-primary" onclick="parseAndPreview()">
-            Preview
-          </button>
-          <button
-            class="btn btn-success"
-            id="uploadBtn"
-            onclick="uploadParsedToDB()"
-            disabled
-          >
-            Upload
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div class="modal" id="addRSSModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Add RSS</h3>
-          <button class="btn btn-light" onclick="hideModal('addRSSModal')">
-            X
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label">Name *</label
-            ><input type="text" class="form-control" id="rssName" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">URL *</label
-            ><input type="url" class="form-control" id="rssUrl" />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-primary" onclick="addRSSSource()">Add</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="modal" id="addTwitterModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Add Twitter</h3>
-          <button class="btn btn-light" onclick="hideModal('addTwitterModal')">
-            X
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label">Handle (no @) *</label
-            ><input type="text" class="form-control" id="twitterHandle" />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-primary" onclick="addTwitterSource()">
-            Add
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div class="modal" id="editPostModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Edit Post</h3>
-          <button class="btn btn-light" onclick="hideModal('editPostModal')">
-            X
-          </button>
-        </div>
-        <div class="modal-body">
-          <input type="hidden" id="editPostId" />
-          <div class="form-group">
-            <label class="form-label">Title</label
-            ><input type="text" class="form-control" id="editTitle" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Summary</label
-            ><textarea
-              class="form-control"
-              id="editSummary"
-              rows="4"
-            ></textarea>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Categories</label>
-            <select
-              class="form-control"
-              id="editCategories"
-              multiple
-              style="height: 100px"
-            >
-              <option value="Politics">Politics</option>
-              <option value="Sports">Sports</option>
-              <option value="Cinema">Cinema</option>
-              <option value="Technology">Technology</option>
-              <option value="Business">Business</option>
-              <option value="Crime">Crime</option>
-              <option value="General">General</option>
+              ">
+            <div><strong id="selectedCount">0</strong> posts selected</div>
+            <select id="bulkActionSelect" class="form-control" style="width: auto">
+              <option value="">Choose action...</option>
+              <option value="publish">Publish Selected</option>
+              <option value="unpublish">Unpublish Selected</option>
+              <option value="delete">Delete Selected</option>
             </select>
+            <button class="btn btn-sm btn-primary" onclick="performBulkAction()">
+              Apply
+            </button>
+            <button class="btn btn-sm btn-light" onclick="clearSelection()">
+              Clear
+            </button>
           </div>
-          <div class="form-group">
-            <label class="form-label">Image URL</label
-            ><input type="text" class="form-control" id="editImageUrl" />
+
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th style="width: 30px">
+                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" />
+                  </th>
+                  <th>Title</th>
+                  <th>Category</th>
+                  <th>Source</th>
+                  <th>Status</th>
+                  <th>Published</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="posts-list">
+                <tr>
+                  <td colspan="7" class="loading">Loading posts...</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          <div class="form-group">
-            <label class="form-label">Source Name</label
-            ><input type="text" class="form-control" id="editSourceName" />
+          <div id="pagination" style="text-align: center; margin-top: 1rem"></div>
+        </div>
+
+        <div id="queue-section" class="section" style="display: none">
+          <div class="content-header">
+            <h2><i class="fas fa-tasks"></i> Processing Queue</h2>
+            <div class="controls">
+              <button class="btn btn-sm btn-danger" onclick="clearQueue()">
+                <i class="fas fa-trash"></i> Clear All
+              </button>
+            </div>
           </div>
-          <div class="form-group checkbox-container">
-            <input type="checkbox" id="editIsPublished" />
-            <label for="editIsPublished">Published</label>
+          <div id="queue-items">
+            <div class="loading">Loading queue items...</div>
           </div>
         </div>
-        <div class="modal-footer">
-          <button class="btn btn-primary" onclick="updatePost()">Save</button>
+
+        <div id="rss-section" class="section" style="display: none">
+          <div class="content-header">
+            <h2><i class="fas fa-rss"></i> RSS Feeds Management</h2>
+            <div class="controls">
+              <button class="btn btn-primary" onclick="showAddRSSModal()">
+                <i class="fas fa-plus"></i> Add RSS
+              </button>
+              <button class="btn btn-success" onclick="triggerRSSFetch()">
+                <i class="fas fa-sync-alt"></i> Fetch Now
+              </button>
+            </div>
+          </div>
+          <div class="card">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>URL</th>
+                  <th>Status</th>
+                  <th>Added</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="rss-sources-list">
+                <tr>
+                  <td colspan="5">Loading...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
+
+        <div id="twitter-section" class="section" style="display: none">
+          <div class="content-header">
+            <h2><i class="fab fa-twitter"></i> Twitter Handles Management</h2>
+            <div class="controls">
+              <button class="btn btn-primary" onclick="showAddTwitterModal()">
+                <i class="fas fa-plus"></i> Add Twitter
+              </button>
+              <button class="btn btn-success" onclick="triggerTwitterFetch()">
+                <i class="fas fa-sync-alt"></i> Fetch Now
+              </button>
+            </div>
+          </div>
+          <div class="card">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Handle</th>
+                  <th>Status</th>
+                  <th>Added</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="twitter-sources-list">
+                <tr>
+                  <td colspan="4">Loading...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div class="modal" id="createPostModal">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3>Manual Post Entry</h3>
+        <button class="btn btn-light" onclick="hideModal('createPostModal')">
+          X
+        </button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom: 1rem; text-align: right;">
+          <button class="btn btn-sm btn-info" onclick="toggleJsonPaste()">Paste JSON</button>
+        </div>
+        <div id="jsonPasteArea" style="display:none; margin-bottom: 1rem;">
+          <textarea id="jsonInput" class="form-control" rows="5" placeholder="Paste JSON here..."></textarea>
+          <button class="btn btn-sm btn-primary" style="margin-top: 5px;" onclick="populateFormFromJson()">Populate
+            Form</button>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Title *</label>
+          <input type="text" class="form-control" id="cpTitle" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Summary *</label>
+          <textarea class="form-control" id="cpSummary" rows="3"></textarea>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label">Image URL</label>
+            <input type="text" class="form-control" id="cpImageUrl" />
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label">Source</label>
+            <input type="text" class="form-control" id="cpSource" placeholder="News18" />
+          </div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label">Original URL</label>
+            <input type="text" class="form-control" id="cpUrl" />
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label">Published At</label>
+            <input type="datetime-local" class="form-control" id="cpPublishedAt" />
+          </div>
+        </div>
+
+        <h4 style="margin-top: 1rem; margin-bottom: 0.5rem; border-bottom: 1px solid #dee2e6; padding-bottom: 5px;">
+          Related Stories</h4>
+        <div id="relatedStoriesContainer">
+          <!-- Related stories will be added here -->
+        </div>
+        <button class="btn btn-sm btn-light" onclick="addRelatedStoryField()" style="margin-top: 10px;"><i
+            class="fas fa-plus"></i> Add Related Story</button>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-success" onclick="submitManualPost()">
+          Create Post
+        </button>
       </div>
     </div>
+  </div>
 
-    <div class="modal" id="editSourceModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>Edit Source</h3>
-          <button class="btn btn-light" onclick="hideModal('editSourceModal')">
-            X
-          </button>
+  <div class="modal" id="addTextModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Add Text</h3>
+        <button class="btn btn-light" onclick="hideModal('addTextModal')">
+          X
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Title (Optional)</label><input type="text" class="form-control" id="textTitle" />
         </div>
-        <div class="modal-body">
-          <input type="hidden" id="editSourceId" /><input
-            type="hidden"
-            id="editSourceType"
-          />
-          <div class="form-group" id="editSourceNameGroup">
-            <label class="form-label">Name</label
-            ><input type="text" class="form-control" id="editSourceNameInput" />
-          </div>
-          <div class="form-group" id="editSourceUrlGroup">
-            <label class="form-label">URL</label
-            ><input type="url" class="form-control" id="editSourceUrl" />
-          </div>
-          <div class="form-group" id="editSourceHandleGroup">
-            <label class="form-label">Handle</label
-            ><input type="text" class="form-control" id="editSourceHandle" />
-          </div>
-          <div class="form-group checkbox-container">
-            <input type="checkbox" id="editSourceActive" />
-            <label for="editSourceActive">Active</label>
-          </div>
+        <div class="form-group">
+          <label class="form-label">Content *</label><textarea class="form-control" id="textContent"
+            style="height: 120px"></textarea>
         </div>
-        <div class="modal-footer">
-          <button class="btn btn-danger" onclick="deleteSource()">
-            Delete
-          </button>
-          <button class="btn btn-primary" onclick="updateSource()">Save</button>
+        <div class="form-group">
+          <label class="form-label">Source</label><input type="text" class="form-control" id="textSource"
+            placeholder="Manual" />
         </div>
       </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="addTextToQueue()">
+          Add to Queue
+        </button>
+      </div>
     </div>
+  </div>
 
-    <script>
-      // --- GLOBAL VARIABLES ---
-      let categoryChart = null,
-        currentSection = "dashboard",
-        currentPage = 1,
-        selectedPosts = new Set(),
-        debounceTimer,
-        parsedPayload = [];
+  <div class="modal" id="addUrlModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Add URL</h3>
+        <button class="btn btn-light" onclick="hideModal('addUrlModal')">
+          X
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">URL *</label><input type="url" class="form-control" id="urlInput" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Title</label><input type="text" class="form-control" id="urlTitle" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Content (Opt)</label><textarea class="form-control" id="urlContent"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Source</label><input type="text" class="form-control" id="urlSource" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="addUrlToQueue()">
+          Add to Queue
+        </button>
+      </div>
+    </div>
+  </div>
 
-      // --- NAVIGATION ---
+  <div class="modal" id="smartParserModal">
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3>Smart Parser V3</h3>
+        <button class="btn btn-light" onclick="hideModal('smartParserModal')">
+          X
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="parser-container">
+          <div class="form-group">
+            <label class="form-label">Image URL</label><input type="text" class="form-control" id="parserImageUrl"
+              value="https://cdn.siasat.com/wp-content/uploads/2022/02/KCR_1.jpg" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Paste Telugu Text Block</label><textarea class="form-control" id="rawInput"
+              rows="10"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Preview</label>
+            <div class="parser-input" id="previewArea"></div>
+          </div>
+          <div id="parserStatus"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="parseAndPreview()">
+          Preview
+        </button>
+        <button class="btn btn-success" id="uploadBtn" onclick="uploadParsedToDB()" disabled>
+          Upload
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="addRSSModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Add RSS</h3>
+        <button class="btn btn-light" onclick="hideModal('addRSSModal')">
+          X
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Name *</label><input type="text" class="form-control" id="rssName" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">URL *</label><input type="url" class="form-control" id="rssUrl" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="addRSSSource()">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="addTwitterModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Add Twitter</h3>
+        <button class="btn btn-light" onclick="hideModal('addTwitterModal')">
+          X
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Handle (no @) *</label><input type="text" class="form-control" id="twitterHandle" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="addTwitterSource()">
+          Add
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="editPostModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Edit Post</h3>
+        <button class="btn btn-light" onclick="hideModal('editPostModal')">
+          X
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editPostId" />
+        <div class="form-group">
+          <label class="form-label">Title</label><input type="text" class="form-control" id="editTitle" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Summary</label><textarea class="form-control" id="editSummary" rows="4"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Categories</label>
+          <select class="form-control" id="editCategories" multiple style="height: 100px">
+            <option value="Politics">Politics</option>
+            <option value="Sports">Sports</option>
+            <option value="Cinema">Cinema</option>
+            <option value="Technology">Technology</option>
+            <option value="Business">Business</option>
+            <option value="Crime">Crime</option>
+            <option value="General">General</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Image URL</label><input type="text" class="form-control" id="editImageUrl" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Source Name</label><input type="text" class="form-control" id="editSourceName" />
+        </div>
+        <div class="form-group checkbox-container">
+          <input type="checkbox" id="editIsPublished" />
+          <label for="editIsPublished">Published</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="updatePost()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="editSourceModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Edit Source</h3>
+        <button class="btn btn-light" onclick="hideModal('editSourceModal')">
+          X
+        </button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editSourceId" /><input type="hidden" id="editSourceType" />
+        <div class="form-group" id="editSourceNameGroup">
+          <label class="form-label">Name</label><input type="text" class="form-control" id="editSourceNameInput" />
+        </div>
+        <div class="form-group" id="editSourceUrlGroup">
+          <label class="form-label">URL</label><input type="url" class="form-control" id="editSourceUrl" />
+        </div>
+        <div class="form-group" id="editSourceHandleGroup">
+          <label class="form-label">Handle</label><input type="text" class="form-control" id="editSourceHandle" />
+        </div>
+        <div class="form-group checkbox-container">
+          <input type="checkbox" id="editSourceActive" />
+          <label for="editSourceActive">Active</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" onclick="deleteSource()">
+          Delete
+        </button>
+        <button class="btn btn-primary" onclick="updateSource()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- GLOBAL VARIABLES ---
+    let categoryChart = null,
+      currentSection = "dashboard",
+      currentPage = 1,
+      selectedPosts = new Set(),
+      debounceTimer,
+      parsedPayload = [];
+
+    // --- NAVIGATION ---
+    document
+      .getElementById("menuToggle")
+      .addEventListener("click", () =>
+        document.getElementById("sidebar").classList.toggle("active")
+      );
+    function showSection(section) {
       document
-        .getElementById("menuToggle")
-        .addEventListener("click", () =>
-          document.getElementById("sidebar").classList.toggle("active")
-        );
-      function showSection(section) {
-        document
-          .querySelectorAll(".section")
-          .forEach((el) => (el.style.display = "none"));
-        document
-          .querySelectorAll(".nav-link")
-          .forEach((el) => el.classList.remove("active"));
-        document.getElementById(section + "-section").style.display = "block";
-        event.target.closest(".nav-link")?.classList.add("active"); // Add active to clicked
-        currentSection = section;
-        if (section === "dashboard") refreshDashboard();
-        else if (section === "posts") loadPosts();
-        else if (section === "queue") loadQueue();
-        else if (section === "rss") loadRSSSources();
-        else if (section === "twitter") loadTwitterSources();
-        document.getElementById("sidebar").classList.remove("active");
-      }
+        .querySelectorAll(".section")
+        .forEach((el) => (el.style.display = "none"));
+      document
+        .querySelectorAll(".nav-link")
+        .forEach((el) => el.classList.remove("active"));
+      document.getElementById(section + "-section").style.display = "block";
+      event.target.closest(".nav-link")?.classList.add("active"); // Add active to clicked
+      currentSection = section;
+      if (section === "dashboard") refreshDashboard();
+      else if (section === "posts") loadPosts();
+      else if (section === "queue") loadQueue();
+      else if (section === "rss") loadRSSSources();
+      else if (section === "twitter") loadTwitterSources();
+      document.getElementById("sidebar").classList.remove("active");
+    }
 
-      function showModal(id) {
-        document.getElementById(id).classList.add("active");
-      }
-      function hideModal(id) {
-        document.getElementById(id).classList.remove("active");
-      }
-      function showAddTextModal() {
-        document.getElementById("addTextForm")?.reset();
-        showModal("addTextModal");
-      }
-      function showAddUrlModal() {
-        document.getElementById("addUrlForm")?.reset();
-        showModal("addUrlModal");
-      }
-      function showAddRSSModal() {
-        document.getElementById("addRSSForm")?.reset();
-        showModal("addRSSModal");
-      }
-      function showAddTwitterModal() {
-        document.getElementById("addTwitterForm")?.reset();
-        showModal("addTwitterModal");
-      }
-      function showSmartParserModal() {
-        document.getElementById("rawInput").value = "";
-        document.getElementById("previewArea").innerText = "";
-        document.getElementById("parserStatus").innerHTML = "";
-        document.getElementById("uploadBtn").disabled = true;
-        showModal("smartParserModal");
-      }
+    function showModal(id) {
+      document.getElementById(id).classList.add("active");
+    }
+    function hideModal(id) {
+      document.getElementById(id).classList.remove("active");
+    }
+    function showAddTextModal() {
+      document.getElementById("addTextForm")?.reset();
+      showModal("addTextModal");
+    }
+    function showAddUrlModal() {
+      document.getElementById("addUrlForm")?.reset();
+      showModal("addUrlModal");
+    }
+    function showAddRSSModal() {
+      document.getElementById("addRSSForm")?.reset();
+      showModal("addRSSModal");
+    }
+    function showAddTwitterModal() {
+      document.getElementById("addTwitterForm")?.reset();
+      showModal("addTwitterModal");
+    }
+    function showSmartParserModal() {
+      document.getElementById("rawInput").value = "";
+      document.getElementById("previewArea").innerText = "";
+      document.getElementById("parserStatus").innerHTML = "";
+      document.getElementById("uploadBtn").disabled = true;
+      showModal("smartParserModal");
+    }
 
-      // --- DASHBOARD ---
-      async function fetchDashboardStats() {
-        try {
-          const res = await fetch("/api/dashboard-stats");
-          const data = await res.json();
-          if (data.success) updateDashboard(data.stats);
-        } catch (e) {
-          console.error(e);
-        }
+    // --- DASHBOARD ---
+    async function fetchDashboardStats() {
+      try {
+        const res = await fetch("/api/dashboard-stats");
+        const data = await res.json();
+        if (data.success) updateDashboard(data.stats);
+      } catch (e) {
+        console.error(e);
       }
-      function updateDashboard(stats) {
-        document.getElementById("total-posts").textContent = stats.totalPosts;
-        document.getElementById("posts-today").textContent = stats.postsToday;
-        document.getElementById("queue-length").textContent = stats.queueLength;
-        document.getElementById("total-posts-count").textContent =
-          stats.totalPosts;
-        document.getElementById("posts-today-count").textContent =
-          stats.postsToday;
-        document.getElementById("queue-length-count").textContent =
-          stats.queueLength;
-        document.getElementById("rss-feeds-count").textContent = stats.rssFeeds;
+    }
+    function updateDashboard(stats) {
+      document.getElementById("total-posts").textContent = stats.totalPosts;
+      document.getElementById("posts-today").textContent = stats.postsToday;
+      document.getElementById("queue-length").textContent = stats.queueLength;
+      document.getElementById("total-posts-count").textContent =
+        stats.totalPosts;
+      document.getElementById("posts-today-count").textContent =
+        stats.postsToday;
+      document.getElementById("queue-length-count").textContent =
+        stats.queueLength;
+      document.getElementById("rss-feeds-count").textContent = stats.rssFeeds;
 
-        const ctx = document.getElementById("categoryChart").getContext("2d");
-        if (categoryChart) categoryChart.destroy();
-        categoryChart = new Chart(ctx, {
-          type: "doughnut",
-          data: {
-            labels: stats.categories.map((c) => c._id || "General"),
-            datasets: [
-              {
-                data: stats.categories.map((c) => c.count),
-                backgroundColor: [
-                  "#FF6384",
-                  "#36A2EB",
-                  "#FFCE56",
-                  "#4BC0C0",
-                  "#9966FF",
-                ],
-              },
-            ],
-          },
-        });
+      const ctx = document.getElementById("categoryChart").getContext("2d");
+      if (categoryChart) categoryChart.destroy();
+      categoryChart = new Chart(ctx, {
+        type: "doughnut",
+        data: {
+          labels: stats.categories.map((c) => c._id || "General"),
+          datasets: [
+            {
+              data: stats.categories.map((c) => c.count),
+              backgroundColor: [
+                "#FF6384",
+                "#36A2EB",
+                "#FFCE56",
+                "#4BC0C0",
+                "#9966FF",
+              ],
+            },
+          ],
+        },
+      });
 
-        document.getElementById("recent-posts").innerHTML = stats.recentPosts
-          .length
-          ? stats.recentPosts
-              .map(
-                (p) => `
+      document.getElementById("recent-posts").innerHTML = stats.recentPosts
+        .length
+        ? stats.recentPosts
+          .map(
+            (p) => `
                 <div class="queue-item"><div class="queue-content"><div class="queue-title">${p.title.substring(
-                  0,
-                  80
-                )}...</div>
-                <div class="queue-meta"><span>${
-                  p.sourceName || "Unknown"
-                }</span> <span>${new Date(
-                  p.publishedAt
-                ).toLocaleDateString()}</span> <span class="badge ${
-                  p.isPublished ? "badge-published" : "badge-unpublished"
-                }">${p.isPublished ? "Pub" : "Draft"}</span></div></div></div>`
-              )
-              .join("")
-          : '<div class="queue-item">No posts</div>';
-      }
+              0,
+              80
+            )}...</div>
+                <div class="queue-meta"><span>${p.sourceName || "Unknown"
+              }</span> <span>${new Date(
+                p.publishedAt
+              ).toLocaleDateString()}</span> <span class="badge ${p.isPublished ? "badge-published" : "badge-unpublished"
+              }">${p.isPublished ? "Pub" : "Draft"}</span></div></div></div>`
+          )
+          .join("")
+        : '<div class="queue-item">No posts</div>';
+    }
 
-      // --- POSTS ---
-      async function loadPosts(page = 1) {
-        currentPage = page;
-        const cat = document.getElementById("category-filter").value;
-        const search = document.getElementById("search-posts").value;
-        try {
-          const res = await fetch(
-            `/api/posts?page=${page}&limit=20&category=${cat}&search=${search}`
-          );
-          const data = await res.json();
-          if (data.success) {
-            const list = document.getElementById("posts-list");
-            if (!data.posts.length) {
-              list.innerHTML =
-                '<tr><td colspan="7" class="loading">No posts found</td></tr>';
-              return;
-            }
-            list.innerHTML = data.posts
-              .map(
-                (p) => `
+    // --- POSTS ---
+    async function loadPosts(page = 1) {
+      currentPage = page;
+      const cat = document.getElementById("category-filter").value;
+      const search = document.getElementById("search-posts").value;
+      try {
+        const res = await fetch(
+          `/api/posts?page=${page}&limit=20&category=${cat}&search=${search}`
+        );
+        const data = await res.json();
+        if (data.success) {
+          const list = document.getElementById("posts-list");
+          if (!data.posts.length) {
+            list.innerHTML =
+              '<tr><td colspan="7" class="loading">No posts found</td></tr>';
+            return;
+          }
+          list.innerHTML = data.posts
+            .map(
+              (p) => `
                         <tr>
-                            <td><input type="checkbox" class="post-checkbox" value="${
-                              p.postId
-                            }" onchange="updateSelection('${
-                  p.postId
+                            <td><input type="checkbox" class="post-checkbox" value="${p.postId
+                }" onchange="updateSelection('${p.postId
                 }', this.checked)"></td>
                             <td><div style="font-weight:500">${p.title.substring(
-                              0,
-                              60
-                            )}...</div><div style="font-size:0.8em;color:#666">${
-                  p.summary ? p.summary.substring(0, 60) : ""
+                  0,
+                  60
+                )}...</div><div style="font-size:0.8em;color:#666">${p.summary ? p.summary.substring(0, 60) : ""
                 }</div></td>
-                            <td><span class="badge badge-primary">${
-                              p.categories[0] || "Gen"
-                            }</span></td>
+                            <td><span class="badge badge-primary">${p.categories[0] || "Gen"
+                }</span></td>
                             <td>${p.sourceName || "Man"}</td>
-                            <td><span class="badge ${
-                              p.isPublished
-                                ? "badge-published"
-                                : "badge-unpublished"
-                            }">${p.isPublished ? "Pub" : "Draft"}</span></td>
+                            <td><span class="badge ${p.isPublished
+                  ? "badge-published"
+                  : "badge-unpublished"
+                }">${p.isPublished ? "Pub" : "Draft"}</span></td>
                             <td>${new Date(
-                              p.publishedAt
-                            ).toLocaleDateString()}</td>
+                  p.publishedAt
+                ).toLocaleDateString()}</td>
                             <td>
                                 <div class="post-actions">
-                                    <button class="btn btn-sm btn-light" onclick="togglePostPublish('${
-                                      p.postId
-                                    }')"><i class="fas fa-power-off"></i></button>
-                                    <button class="btn btn-sm btn-primary" onclick="showEditPostModal('${
-                                      p.postId
-                                    }')"><i class="fas fa-edit"></i></button>
-                                    <button class="btn btn-sm btn-danger" onclick="deletePost('${
-                                      p.postId
-                                    }')"><i class="fas fa-trash"></i></button>
+                                    <button class="btn btn-sm btn-light" onclick="togglePostPublish('${p.postId
+                }')"><i class="fas fa-power-off"></i></button>
+                                    <button class="btn btn-sm btn-primary" onclick="showEditPostModal('${p.postId
+                }')"><i class="fas fa-edit"></i></button>
+                                    <button class="btn btn-sm btn-danger" onclick="deletePost('${p.postId
+                }')"><i class="fas fa-trash"></i></button>
                                 </div>
                             </td>
                         </tr>`
-              )
-              .join("");
+            )
+            .join("");
 
-            let pag = "";
-            if (page > 1)
-              pag += `<button class="btn btn-sm btn-light" onclick="loadPosts(${
-                page - 1
+          let pag = "";
+          if (page > 1)
+            pag += `<button class="btn btn-sm btn-light" onclick="loadPosts(${page - 1
               })"><</button> `;
-            pag += ` <span>Page ${page} of ${data.totalPages}</span> `;
-            if (page < data.totalPages)
-              pag += ` <button class="btn btn-sm btn-light" onclick="loadPosts(${
-                page + 1
+          pag += ` <span>Page ${page} of ${data.totalPages}</span> `;
+          if (page < data.totalPages)
+            pag += ` <button class="btn btn-sm btn-light" onclick="loadPosts(${page + 1
               })">></button>`;
-            document.getElementById("pagination").innerHTML = pag;
-          }
-        } catch (e) {
-          console.error(e);
+          document.getElementById("pagination").innerHTML = pag;
         }
+      } catch (e) {
+        console.error(e);
       }
+    }
 
-      // --- EDIT POST ---
-      async function showEditPostModal(id) {
-        const res = await fetch("/api/posts/" + id);
-        const data = await res.json();
-        if (data.success) {
-          const p = data.post;
-          document.getElementById("editPostId").value = id;
-          document.getElementById("editTitle").value = p.title;
-          document.getElementById("editSummary").value = p.summary || "";
-          document.getElementById("editImageUrl").value = p.imageUrl || "";
-          document.getElementById("editSourceName").value = p.sourceName || "";
-          document.getElementById("editIsPublished").checked = p.isPublished;
-          Array.from(document.getElementById("editCategories").options).forEach(
-            (o) => (o.selected = p.categories && p.categories.includes(o.value))
-          );
-          showModal("editPostModal");
-        }
+    // --- EDIT POST ---
+    async function showEditPostModal(id) {
+      const res = await fetch("/api/posts/" + id);
+      const data = await res.json();
+      if (data.success) {
+        const p = data.post;
+        document.getElementById("editPostId").value = id;
+        document.getElementById("editTitle").value = p.title;
+        document.getElementById("editSummary").value = p.summary || "";
+        document.getElementById("editImageUrl").value = p.imageUrl || "";
+        document.getElementById("editSourceName").value = p.sourceName || "";
+        document.getElementById("editIsPublished").checked = p.isPublished;
+        Array.from(document.getElementById("editCategories").options).forEach(
+          (o) => (o.selected = p.categories && p.categories.includes(o.value))
+        );
+        showModal("editPostModal");
       }
-      async function updatePost() {
-        const id = document.getElementById("editPostId").value;
-        const body = {
-          title: document.getElementById("editTitle").value,
-          summary: document.getElementById("editSummary").value,
-          imageUrl: document.getElementById("editImageUrl").value,
-          sourceName: document.getElementById("editSourceName").value,
-          isPublished: document.getElementById("editIsPublished").checked,
-          categories: Array.from(
-            document.getElementById("editCategories").selectedOptions
-          ).map((o) => o.value),
-        };
-        await fetch("/api/posts/" + id, {
-          method: "PUT",
+    }
+    async function updatePost() {
+      const id = document.getElementById("editPostId").value;
+      const body = {
+        title: document.getElementById("editTitle").value,
+        summary: document.getElementById("editSummary").value,
+        imageUrl: document.getElementById("editImageUrl").value,
+        sourceName: document.getElementById("editSourceName").value,
+        isPublished: document.getElementById("editIsPublished").checked,
+        categories: Array.from(
+          document.getElementById("editCategories").selectedOptions
+        ).map((o) => o.value),
+      };
+      await fetch("/api/posts/" + id, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      hideModal("editPostModal");
+      loadPosts(currentPage);
+    }
+
+    // --- ACTIONS ---
+    async function togglePostPublish(id) {
+      await fetch(`/api/posts/${id}/toggle-publish`, { method: "POST" });
+      loadPosts(currentPage);
+    }
+    async function deletePost(id) {
+      if (confirm("Delete?")) {
+        await fetch(`/api/posts/${id}`, { method: "DELETE" });
+        loadPosts(currentPage);
+      }
+    }
+    function debouncedSearch() {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => loadPosts(1), 500);
+    }
+
+    // --- BULK ACTIONS ---
+    function updateSelection(id, checked) {
+      if (checked) selectedPosts.add(id);
+      else selectedPosts.delete(id);
+      updateBulkUI();
+    }
+    function toggleSelectAll() {
+      const all = document.getElementById("selectAll").checked;
+      document.querySelectorAll(".post-checkbox").forEach((c) => {
+        c.checked = all;
+        updateSelection(c.value, all);
+      });
+    }
+    function updateBulkUI() {
+      const div = document.getElementById("bulkActions");
+      document.getElementById("selectedCount").textContent =
+        selectedPosts.size;
+      div.style.display = selectedPosts.size > 0 ? "flex" : "none";
+    }
+    function clearSelection() {
+      selectedPosts.clear();
+      document
+        .querySelectorAll(".post-checkbox")
+        .forEach((c) => (c.checked = false));
+      document.getElementById("selectAll").checked = false;
+      updateBulkUI();
+    }
+    async function performBulkAction() {
+      const action = document.getElementById("bulkActionSelect").value;
+      if (!action || !selectedPosts.size) return;
+      if (confirm(`Perform ${action} on ${selectedPosts.size} posts?`)) {
+        await fetch("/api/posts/bulk-update", {
+          method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
+          body: JSON.stringify({
+            postIds: Array.from(selectedPosts),
+            action,
+          }),
         });
-        hideModal("editPostModal");
+        clearSelection();
         loadPosts(currentPage);
       }
+    }
 
-      // --- ACTIONS ---
-      async function togglePostPublish(id) {
-        await fetch(`/api/posts/${id}/toggle-publish`, { method: "POST" });
-        loadPosts(currentPage);
-      }
-      async function deletePost(id) {
-        if (confirm("Delete?")) {
-          await fetch(`/api/posts/${id}`, { method: "DELETE" });
-          loadPosts(currentPage);
-        }
-      }
-      function debouncedSearch() {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => loadPosts(1), 500);
-      }
-
-      // --- BULK ACTIONS ---
-      function updateSelection(id, checked) {
-        if (checked) selectedPosts.add(id);
-        else selectedPosts.delete(id);
-        updateBulkUI();
-      }
-      function toggleSelectAll() {
-        const all = document.getElementById("selectAll").checked;
-        document.querySelectorAll(".post-checkbox").forEach((c) => {
-          c.checked = all;
-          updateSelection(c.value, all);
-        });
-      }
-      function updateBulkUI() {
-        const div = document.getElementById("bulkActions");
-        document.getElementById("selectedCount").textContent =
-          selectedPosts.size;
-        div.style.display = selectedPosts.size > 0 ? "flex" : "none";
-      }
-      function clearSelection() {
-        selectedPosts.clear();
-        document
-          .querySelectorAll(".post-checkbox")
-          .forEach((c) => (c.checked = false));
-        document.getElementById("selectAll").checked = false;
-        updateBulkUI();
-      }
-      async function performBulkAction() {
-        const action = document.getElementById("bulkActionSelect").value;
-        if (!action || !selectedPosts.size) return;
-        if (confirm(`Perform ${action} on ${selectedPosts.size} posts?`)) {
-          await fetch("/api/posts/bulk-update", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              postIds: Array.from(selectedPosts),
-              action,
-            }),
-          });
-          clearSelection();
-          loadPosts(currentPage);
-        }
-      }
-
-      // --- QUEUE & ADD ---
-      async function loadQueue() {
-        const res = await fetch("/api/queue");
-        const data = await res.json();
-        document.getElementById("queue-items").innerHTML = data.queue.length
-          ? data.queue
-              .map(
-                (q) => `
+    // --- QUEUE & ADD ---
+    async function loadQueue() {
+      const res = await fetch("/api/queue");
+      const data = await res.json();
+      document.getElementById("queue-items").innerHTML = data.queue.length
+        ? data.queue
+          .map(
+            (q) => `
                 <div class="card" style="margin-bottom:1rem"><div class="queue-item"><div class="queue-content">
                 <div class="queue-title">${(q.text || "").substring(
-                  0,
-                  100
-                )}...</div>
-                <div class="queue-meta"><span>${
-                  q.source
-                }</span> <span>${new Date(
-                  q.queuedAt
-                ).toLocaleString()}</span></div></div>
-                <div class="queue-actions"><button class="btn btn-sm btn-danger" onclick="removeFromQueue('${
-                  q.id
-                }')">Remove</button></div></div></div>`
-              )
-              .join("")
-          : '<div style="padding:2rem;text-align:center">Queue Empty</div>';
-      }
-      async function removeFromQueue(id) {
-        if (confirm("Remove?")) {
-          await fetch("/api/queue/" + id, { method: "DELETE" });
-          loadQueue();
-          fetchDashboardStats();
-        }
-      }
-      async function clearQueue() {
-        if (confirm("Clear All?")) {
-          await fetch("/api/clear-queue", { method: "POST" });
-          loadQueue();
-          fetchDashboardStats();
-        }
-      }
-
-      async function addTextToQueue() {
-        const body = {
-          title: document.getElementById("textTitle").value,
-          text: document.getElementById("textContent").value,
-          source: document.getElementById("textSource").value || "Manual",
-        };
-        if (!body.text) return alert("Content required");
-        await fetch("/api/add-text-to-queue", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        hideModal("addTextModal");
-        loadQueue();
-        refreshDashboard();
-      }
-      async function addUrlToQueue() {
-        const body = {
-          url: document.getElementById("urlInput").value,
-          title: document.getElementById("urlTitle").value,
-          content: document.getElementById("urlContent").value,
-          source: document.getElementById("urlSource").value || "Manual URL",
-        };
-        if (!body.url) return alert("URL required");
-        await fetch("/api/add-content-to-queue", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        hideModal("addUrlModal");
-        loadQueue();
-        refreshDashboard();
-      }
-
-      // --- SOURCES ---
-      async function loadRSSSources() {
-        const res = await fetch("/api/rss-sources");
-        const data = await res.json();
-        document.getElementById("rss-sources-list").innerHTML = data.sources
-          .map(
-            (s) =>
-              `<tr><td>${s.name}</td><td><small>${
-                s.url
-              }</small></td><td><span class="badge ${
-                s.isActive ? "badge-success" : "badge-danger"
-              }">${
-                s.isActive ? "Active" : "Inactive"
-              }</span></td><td>${new Date(
-                s.addedAt
-              ).toLocaleDateString()}</td><td><button class="btn btn-sm btn-primary" onclick="showEditSourceModal('${
-                s._id
-              }','rss')"><i class="fas fa-edit"></i></button></td></tr>`
+              0,
+              100
+            )}...</div>
+                <div class="queue-meta"><span>${q.source
+              }</span> <span>${new Date(
+                q.queuedAt
+              ).toLocaleString()}</span></div></div>
+                <div class="queue-actions"><button class="btn btn-sm btn-danger" onclick="removeFromQueue('${q.id
+              }')">Remove</button></div></div></div>`
           )
-          .join("");
+          .join("")
+        : '<div style="padding:2rem;text-align:center">Queue Empty</div>';
+    }
+    async function removeFromQueue(id) {
+      if (confirm("Remove?")) {
+        await fetch("/api/queue/" + id, { method: "DELETE" });
+        loadQueue();
+        fetchDashboardStats();
       }
-      async function loadTwitterSources() {
-        const res = await fetch("/api/twitter-sources");
-        const data = await res.json();
-        document.getElementById("twitter-sources-list").innerHTML = data.sources
-          .map(
-            (s) =>
-              `<tr><td>@${s.handle}</td><td><span class="badge ${
-                s.isActive ? "badge-success" : "badge-danger"
-              }">${
-                s.isActive ? "Active" : "Inactive"
-              }</span></td><td>${new Date(
-                s.addedAt
-              ).toLocaleDateString()}</td><td><button class="btn btn-sm btn-primary" onclick="showEditSourceModal('${
-                s._id
-              }','twitter')"><i class="fas fa-edit"></i></button></td></tr>`
-          )
-          .join("");
+    }
+    async function clearQueue() {
+      if (confirm("Clear All?")) {
+        await fetch("/api/clear-queue", { method: "POST" });
+        loadQueue();
+        fetchDashboardStats();
       }
-      async function addRSSSource() {
-        const body = {
-          name: document.getElementById("rssName").value,
-          url: document.getElementById("rssUrl").value,
-        };
-        await fetch("/api/rss-sources", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        hideModal("addRSSModal");
-        loadRSSSources();
-      }
-      async function addTwitterSource() {
-        const body = { handle: document.getElementById("twitterHandle").value };
-        await fetch("/api/twitter-sources", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        hideModal("addTwitterModal");
-        loadTwitterSources();
+    }
+
+    async function addTextToQueue() {
+      const body = {
+        title: document.getElementById("textTitle").value,
+        text: document.getElementById("textContent").value,
+        source: document.getElementById("textSource").value || "Manual",
+      };
+      if (!body.text) return alert("Content required");
+      await fetch("/api/add-text-to-queue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      hideModal("addTextModal");
+      loadQueue();
+      refreshDashboard();
+    }
+    async function addUrlToQueue() {
+      const body = {
+        url: document.getElementById("urlInput").value,
+        title: document.getElementById("urlTitle").value,
+        content: document.getElementById("urlContent").value,
+        source: document.getElementById("urlSource").value || "Manual URL",
+      };
+      if (!body.url) return alert("URL required");
+      const res = await fetch("/api/add-content-to-queue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (res.ok) {
+        alert("✅ Added to queue successfully!");
+      } else {
+        alert("❌ Failed to add to queue.");
       }
 
-      function showEditSourceModal(id, type) {
-        document.getElementById("editSourceId").value = id;
-        document.getElementById("editSourceType").value = type;
-        // Fetch logic omitted for brevity, assumes list reload. Ideal to store in global var or fetch by ID.
-        fetch(`/api/${type}-sources`)
-          .then((r) => r.json())
-          .then((d) => {
-            const s = d.sources.find((x) => x._id === id);
-            if (s) {
-              document.getElementById("editSourceActive").checked = s.isActive;
-              if (type === "rss") {
-                document.getElementById("editSourceNameGroup").style.display =
-                  "block";
-                document.getElementById("editSourceUrlGroup").style.display =
-                  "block";
-                document.getElementById("editSourceHandleGroup").style.display =
-                  "none";
-                document.getElementById("editSourceNameInput").value = s.name;
-                document.getElementById("editSourceUrl").value = s.url;
-              } else {
-                document.getElementById("editSourceNameGroup").style.display =
-                  "none";
-                document.getElementById("editSourceUrlGroup").style.display =
-                  "none";
-                document.getElementById("editSourceHandleGroup").style.display =
-                  "block";
-                document.getElementById("editSourceHandle").value = s.handle;
-              }
-              showModal("editSourceModal");
+      hideModal("addUrlModal");
+      loadQueue();
+      refreshDashboard();
+    }
+
+    // --- SOURCES ---
+    async function loadRSSSources() {
+      const res = await fetch("/api/rss-sources");
+      const data = await res.json();
+      document.getElementById("rss-sources-list").innerHTML = data.sources
+        .map(
+          (s) =>
+            `<tr><td>${s.name}</td><td><small>${s.url
+            }</small></td><td><span class="badge ${s.isActive ? "badge-success" : "badge-danger"
+            }">${s.isActive ? "Active" : "Inactive"
+            }</span></td><td>${new Date(
+              s.addedAt
+            ).toLocaleDateString()}</td><td><button class="btn btn-sm btn-primary" onclick="showEditSourceModal('${s._id
+            }','rss')"><i class="fas fa-edit"></i></button></td></tr>`
+        )
+        .join("");
+    }
+    async function loadTwitterSources() {
+      const res = await fetch("/api/twitter-sources");
+      const data = await res.json();
+      document.getElementById("twitter-sources-list").innerHTML = data.sources
+        .map(
+          (s) =>
+            `<tr><td>@${s.handle}</td><td><span class="badge ${s.isActive ? "badge-success" : "badge-danger"
+            }">${s.isActive ? "Active" : "Inactive"
+            }</span></td><td>${new Date(
+              s.addedAt
+            ).toLocaleDateString()}</td><td><button class="btn btn-sm btn-primary" onclick="showEditSourceModal('${s._id
+            }','twitter')"><i class="fas fa-edit"></i></button></td></tr>`
+        )
+        .join("");
+    }
+    async function addRSSSource() {
+      const body = {
+        name: document.getElementById("rssName").value,
+        url: document.getElementById("rssUrl").value,
+      };
+      await fetch("/api/rss-sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      hideModal("addRSSModal");
+      loadRSSSources();
+    }
+    async function addTwitterSource() {
+      const body = { handle: document.getElementById("twitterHandle").value };
+      await fetch("/api/twitter-sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      hideModal("addTwitterModal");
+      loadTwitterSources();
+    }
+
+    function showEditSourceModal(id, type) {
+      document.getElementById("editSourceId").value = id;
+      document.getElementById("editSourceType").value = type;
+      // Fetch logic omitted for brevity, assumes list reload. Ideal to store in global var or fetch by ID.
+      fetch(`/api/${type}-sources`)
+        .then((r) => r.json())
+        .then((d) => {
+          const s = d.sources.find((x) => x._id === id);
+          if (s) {
+            document.getElementById("editSourceActive").checked = s.isActive;
+            if (type === "rss") {
+              document.getElementById("editSourceNameGroup").style.display =
+                "block";
+              document.getElementById("editSourceUrlGroup").style.display =
+                "block";
+              document.getElementById("editSourceHandleGroup").style.display =
+                "none";
+              document.getElementById("editSourceNameInput").value = s.name;
+              document.getElementById("editSourceUrl").value = s.url;
+            } else {
+              document.getElementById("editSourceNameGroup").style.display =
+                "none";
+              document.getElementById("editSourceUrlGroup").style.display =
+                "none";
+              document.getElementById("editSourceHandleGroup").style.display =
+                "block";
+              document.getElementById("editSourceHandle").value = s.handle;
             }
-          });
-      }
-      async function updateSource() {
-        const id = document.getElementById("editSourceId").value;
-        const type = document.getElementById("editSourceType").value;
-        const body = {
-          isActive: document.getElementById("editSourceActive").checked,
-        };
-        if (type === "rss") {
-          body.name = document.getElementById("editSourceNameInput").value;
-          body.url = document.getElementById("editSourceUrl").value;
-        } else {
-          body.handle = document.getElementById("editSourceHandle").value;
-        }
-        await fetch(`/api/${type}-sources/${id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
+            showModal("editSourceModal");
+          }
         });
+    }
+    async function updateSource() {
+      const id = document.getElementById("editSourceId").value;
+      const type = document.getElementById("editSourceType").value;
+      const body = {
+        isActive: document.getElementById("editSourceActive").checked,
+      };
+      if (type === "rss") {
+        body.name = document.getElementById("editSourceNameInput").value;
+        body.url = document.getElementById("editSourceUrl").value;
+      } else {
+        body.handle = document.getElementById("editSourceHandle").value;
+      }
+      await fetch(`/api/${type}-sources/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      hideModal("editSourceModal");
+      type === "rss" ? loadRSSSources() : loadTwitterSources();
+    }
+    async function deleteSource() {
+      const id = document.getElementById("editSourceId").value;
+      const type = document.getElementById("editSourceType").value;
+      if (confirm("Delete?")) {
+        await fetch(`/api/${type}-sources/${id}`, { method: "DELETE" });
         hideModal("editSourceModal");
         type === "rss" ? loadRSSSources() : loadTwitterSources();
       }
-      async function deleteSource() {
-        const id = document.getElementById("editSourceId").value;
-        const type = document.getElementById("editSourceType").value;
-        if (confirm("Delete?")) {
-          await fetch(`/api/${type}-sources/${id}`, { method: "DELETE" });
-          hideModal("editSourceModal");
-          type === "rss" ? loadRSSSources() : loadTwitterSources();
+    }
+
+    // --- MANUAL POST ENTRY ---
+    function showCreatePostModal() {
+      document.getElementById("cpTitle").value = "";
+      document.getElementById("cpSummary").value = "";
+      document.getElementById("cpImageUrl").value = "";
+      document.getElementById("cpSource").value = "";
+      document.getElementById("cpUrl").value = "";
+      document.getElementById("cpPublishedAt").value = new Date().toISOString().slice(0, 16);
+      document.getElementById("relatedStoriesContainer").innerHTML = "";
+      document.getElementById("jsonInput").value = "";
+      document.getElementById("jsonPasteArea").style.display = "none";
+
+      showModal("createPostModal");
+    }
+
+    function toggleJsonPaste() {
+      const area = document.getElementById("jsonPasteArea");
+      area.style.display = area.style.display === "none" ? "block" : "none";
+    }
+
+    function populateFormFromJson() {
+      try {
+        const json = JSON.parse(document.getElementById("jsonInput").value);
+        document.getElementById("cpTitle").value = json.title || "";
+        document.getElementById("cpSummary").value = json.summary || "";
+        document.getElementById("cpImageUrl").value = json.imageUrl || "";
+        document.getElementById("cpSource").value = json.source || "";
+        document.getElementById("cpUrl").value = json.url || "";
+        if (json.publishedAt) {
+          document.getElementById("cpPublishedAt").value = new Date(json.publishedAt).toISOString().slice(0, 16);
         }
+
+        document.getElementById("relatedStoriesContainer").innerHTML = "";
+        if (json.relatedStories && Array.isArray(json.relatedStories)) {
+          json.relatedStories.forEach(story => addRelatedStoryField(story));
+        }
+      } catch (e) {
+        alert("Invalid JSON: " + e.message);
+      }
+    }
+
+    function addRelatedStoryField(data = {}) {
+      const container = document.getElementById("relatedStoriesContainer");
+      const div = document.createElement("div");
+      div.className = "related-story-item card";
+      div.style.padding = "1rem";
+      div.style.marginBottom = "1rem";
+      div.style.background = "#f8f9fa";
+
+      div.innerHTML = `
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                <strong>Related Story</strong>
+                <button class="btn btn-sm btn-danger" onclick="this.closest('.related-story-item').remove()">Remove</button>
+            </div>
+            <div class="form-group">
+                <input type="text" class="form-control rs-title" placeholder="Title" value="${data.title || ''}">
+            </div>
+            <div class="form-group">
+                <textarea class="form-control rs-summary" placeholder="Summary" rows="2">${data.summary || ''}</textarea>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" class="form-control rs-image" placeholder="Image URL" value="${data.imageUrl || ''}" style="flex:1">
+                <input type="text" class="form-control rs-source" placeholder="Source" value="${data.source || ''}" style="flex:1">
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <input type="text" class="form-control rs-url" placeholder="URL" value="${data.url || ''}" style="flex:1">
+                <input type="datetime-local" class="form-control rs-published" value="${data.publishedAt ? new Date(data.publishedAt).toISOString().slice(0, 16) : ''}" style="flex:1">
+            </div>
+          `;
+      container.appendChild(div);
+    }
+
+    async function submitManualPost() {
+      const title = document.getElementById("cpTitle").value;
+      const summary = document.getElementById("cpSummary").value;
+
+      if (!title || !summary) return alert("Title and Summary are required");
+
+      const relatedStories = [];
+      document.querySelectorAll("#relatedStoriesContainer .related-story-item").forEach(item => {
+        relatedStories.push({
+          title: item.querySelector(".rs-title").value,
+          summary: item.querySelector(".rs-summary").value,
+          imageUrl: item.querySelector(".rs-image").value,
+          source: item.querySelector(".rs-source").value,
+          url: item.querySelector(".rs-url").value,
+          publishedAt: item.querySelector(".rs-published").value ? new Date(item.querySelector(".rs-published").value) : null
+        });
+      });
+
+      const postData = {
+        title,
+        summary,
+        imageUrl: document.getElementById("cpImageUrl").value,
+        source: document.getElementById("cpSource").value || "Manual",
+        sourceName: document.getElementById("cpSource").value || "Manual Entry",
+        url: document.getElementById("cpUrl").value,
+        publishedAt: document.getElementById("cpPublishedAt").value ? new Date(document.getElementById("cpPublishedAt").value) : new Date(),
+        relatedStories,
+        isPublished: true,
+        categories: ["General"] // Default
+      };
+
+      try {
+        const res = await fetch("/api/create-manual-posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(postData) // API expects array or object, handling logic supports object
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("Post created successfully!");
+          hideModal("createPostModal");
+          refreshDashboard();
+          loadPosts();
+        } else {
+          alert("Error: " + data.error);
+        }
+      } catch (e) {
+        alert("Network Error: " + e.message);
+      }
+    }
+
+    // --- SMART PARSER ---
+    function parseAndPreview() {
+      let rawText = document.getElementById("rawInput").value;
+      const imageUrl = document.getElementById("parserImageUrl").value;
+      if (!rawText.trim()) return alert("Paste text first");
+
+      rawText = rawText
+        .replace(/\(Main Summary\)/gi, "")
+        .replace(/\(Related Summary.*?\)/gi, "");
+      rawText = rawText
+        .replace(/\n\s*\n/g, "\n")
+        .replace(/\[Image\]/gi, "\n")
+        .replace(/\.\.\s+/g, "\n")
+        .replace(/:\s+/g, "\n");
+      const lines = rawText
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l.length > 0);
+
+      if (lines.length < 2)
+        return alert("Cannot parse. Ensure Title and Body structure.");
+
+      const relatedStories = [];
+      for (let i = 2; i < lines.length; i += 2) {
+        if (lines[i])
+          relatedStories.push({
+            title: lines[i],
+            summary: lines[i + 1] || "",
+            imageUrl: imageUrl,
+          });
       }
 
-      // --- SMART PARSER ---
-      function parseAndPreview() {
-        let rawText = document.getElementById("rawInput").value;
-        const imageUrl = document.getElementById("parserImageUrl").value;
-        if (!rawText.trim()) return alert("Paste text first");
+      parsedPayload = [
+        {
+          title: lines[0],
+          summary: lines[1],
+          imageUrl: imageUrl,
+          source: "Manual",
+          sourceName: "Manual Parser",
+          sourceType: "manual",
+          categories: ["General"],
+          relatedStories: relatedStories,
+        },
+      ];
 
-        rawText = rawText
-          .replace(/\(Main Summary\)/gi, "")
-          .replace(/\(Related Summary.*?\)/gi, "");
-        rawText = rawText
-          .replace(/\n\s*\n/g, "\n")
-          .replace(/\[Image\]/gi, "\n")
-          .replace(/\.\.\s+/g, "\n")
-          .replace(/:\s+/g, "\n");
-        const lines = rawText
-          .split("\n")
-          .map((l) => l.trim())
-          .filter((l) => l.length > 0);
+      document.getElementById("previewArea").innerText = JSON.stringify(
+        parsedPayload,
+        null,
+        4
+      );
+      const btn = document.getElementById("uploadBtn");
+      btn.innerHTML = `Upload (${1 + relatedStories.length} Items)`;
+      btn.disabled = false;
+    }
 
-        if (lines.length < 2)
-          return alert("Cannot parse. Ensure Title and Body structure.");
-
-        const relatedStories = [];
-        for (let i = 2; i < lines.length; i += 2) {
-          if (lines[i])
-            relatedStories.push({
-              title: lines[i],
-              summary: lines[i + 1] || "",
-              imageUrl: imageUrl,
-            });
-        }
-
-        parsedPayload = [
-          {
-            title: lines[0],
-            summary: lines[1],
-            imageUrl: imageUrl,
-            source: "Manual",
-            sourceName: "Manual Parser",
-            sourceType: "manual",
-            categories: ["General"],
-            relatedStories: relatedStories,
-          },
-        ];
-
-        document.getElementById("previewArea").innerText = JSON.stringify(
-          parsedPayload,
-          null,
-          4
-        );
-        const btn = document.getElementById("uploadBtn");
-        btn.innerHTML = `Upload (${1 + relatedStories.length} Items)`;
+    async function uploadParsedToDB() {
+      const btn = document.getElementById("uploadBtn");
+      btn.disabled = true;
+      btn.innerHTML = "Uploading...";
+      try {
+        const res = await fetch("/api/create-manual-posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(parsedPayload),
+        });
+        const d = await res.json();
+        if (d.success) {
+          document.getElementById("parserStatus").innerHTML =
+            '<div style="color:green">Success!</div>';
+          setTimeout(() => {
+            hideModal("smartParserModal");
+            refreshDashboard();
+          }, 1500);
+        } else throw new Error(d.error);
+      } catch (e) {
+        document.getElementById(
+          "parserStatus"
+        ).innerHTML = `<div style="color:red">Error: ${e.message}</div>`;
         btn.disabled = false;
       }
+    }
 
-      async function uploadParsedToDB() {
-        const btn = document.getElementById("uploadBtn");
-        btn.disabled = true;
-        btn.innerHTML = "Uploading...";
-        try {
-          const res = await fetch("/api/create-manual-posts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(parsedPayload),
-          });
-          const d = await res.json();
-          if (d.success) {
-            document.getElementById("parserStatus").innerHTML =
-              '<div style="color:green">Success!</div>';
-            setTimeout(() => {
-              hideModal("smartParserModal");
-              refreshDashboard();
-            }, 1500);
-          } else throw new Error(d.error);
-        } catch (e) {
-          document.getElementById(
-            "parserStatus"
-          ).innerHTML = `<div style="color:red">Error: ${e.message}</div>`;
-          btn.disabled = false;
-        }
-      }
-
-      // --- TRIGGERS ---
-      async function triggerRSSFetch() {
-        alert("RSS Fetch Started");
-        await fetch("/api/trigger-rss-fetch");
-      }
-      async function triggerTwitterFetch() {
-        alert("Twitter Fetch Started");
-        await fetch("/api/trigger-auto-fetch");
-      }
-      function refreshDashboard() {
-        fetchDashboardStats();
-        if (currentSection === "posts") loadPosts(currentPage);
-        if (currentSection === "queue") loadQueue();
-        if (currentSection === "rss") loadRSSSources();
-        if (currentSection === "twitter") loadTwitterSources();
-      }
-
-      // Init
+    // --- TRIGGERS ---
+    async function triggerRSSFetch() {
+      alert("RSS Fetch Started");
+      await fetch("/api/trigger-rss-fetch");
+    }
+    async function triggerTwitterFetch() {
+      alert("Twitter Fetch Started");
+      await fetch("/api/trigger-auto-fetch");
+    }
+    function refreshDashboard() {
       fetchDashboardStats();
-      setInterval(refreshDashboard, 30000);
-    </script>
-  </body>
+      if (currentSection === "posts") loadPosts(currentPage);
+      if (currentSection === "queue") loadQueue();
+      if (currentSection === "rss") loadRSSSources();
+      if (currentSection === "twitter") loadTwitterSources();
+    }
+
+    // Init
+    fetchDashboardStats();
+    setInterval(refreshDashboard, 30000);
+  </script>
+</body>
+
 </html>
