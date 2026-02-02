@@ -1161,105 +1161,105 @@ app.get("/dashboard", (req, res) => {
 
 
 // --- WORKER (With Last-Mile Deduplication) ---
-// cron.schedule("*/10 * * * *", async () => {
-//     const batch = await Queue.find().sort({ queuedAt: 1 }).limit(3);
-//     if (batch.length === 0) return;
+cron.schedule("*/1 * * * *", async () => {
+    const batch = await Queue.find().sort({ queuedAt: 1 }).limit(3);
+    if (batch.length === 0) return;
 
-//     console.log(`⚙️ Worker: Processing ${batch.length} items...`);
+    console.log(`⚙️ Worker: Processing ${batch.length} items...`);
 
-//     for (const item of batch) {
-//         try {
-//             console.log(`   Processing: ${item.url || item.id}`);
+    for (const item of batch) {
+        try {
+            console.log(`   Processing: ${item.url || item.id}`);
 
-//             // 🛑 LAST MILE DEDUPLICATION 🛑
-//             if (item.url) {
-//                 const cleanUrl = normalizeUrl(item.url);
-//                 const duplicate = await Post.findOne({ 
-//                     url: { $regex: new RegExp(cleanUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } 
-//                 });
+            // 🛑 LAST MILE DEDUPLICATION 🛑
+            if (item.url) {
+                const cleanUrl = normalizeUrl(item.url);
+                const duplicate = await Post.findOne({ 
+                    url: { $regex: new RegExp(cleanUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') } 
+                });
 
-//                 if (duplicate) {
-//                     console.log(`   ⛔ Duplicate Found in DB (Skipping): ${cleanUrl}`);
-//                     await Queue.deleteOne({ _id: item._id });
-//                     continue; 
-//                 }
-//             }
+                if (duplicate) {
+                    console.log(`   ⛔ Duplicate Found in DB (Skipping): ${cleanUrl}`);
+                    await Queue.deleteOne({ _id: item._id });
+                    continue; 
+                }
+            }
 
-//             const geminiData = await formatTweetWithGemini(item.text, item.url);
+            const geminiData = await formatTweetWithGemini(item.text, item.url);
 
-//             if (geminiData) {
-//                 let imageUrl = item.imageUrl;
-//                 if(!imageUrl && item.extendedEntities?.media?.[0]) {
-//                     imageUrl = item.extendedEntities.media[0].media_url_https;
-//                 }
+            if (geminiData) {
+                let imageUrl = item.imageUrl;
+                if(!imageUrl && item.extendedEntities?.media?.[0]) {
+                    imageUrl = item.extendedEntities.media[0].media_url_https;
+                }
 
-//                 let finalPostType = "normal_post";
-//                 let tweetVideo = null;
-//                 const mediaList = item.extendedEntities?.media || item.media || [];
+                let finalPostType = "normal_post";
+                let tweetVideo = null;
+                const mediaList = item.extendedEntities?.media || item.media || [];
 
-//                 if (mediaList.length > 0 && mediaList[0].type === "video") {
-//                     const variants = mediaList[0].video_info?.variants || [];
-//                     const bestVideo = variants.filter((v) => v.content_type === "video/mp4").sort((a, b) => b.bitrate - a.bitrate)[0];
-//                     if (bestVideo) {
-//                         tweetVideo = bestVideo.url;
-//                         finalPostType = "normal_video"; 
-//                     }
-//                 }
+                if (mediaList.length > 0 && mediaList[0].type === "video") {
+                    const variants = mediaList[0].video_info?.variants || [];
+                    const bestVideo = variants.filter((v) => v.content_type === "video/mp4").sort((a, b) => b.bitrate - a.bitrate)[0];
+                    if (bestVideo) {
+                        tweetVideo = bestVideo.url;
+                        finalPostType = "normal_video"; 
+                    }
+                }
 
-//                 let finalSearchSlug = geminiData.slug_en;
-//                 if (!finalSearchSlug || finalSearchSlug.length < 3) finalSearchSlug = extractSlugFromUrl(item.url);
-//                 if (!finalSearchSlug) finalSearchSlug = "latest-telugu-news";
+                let finalSearchSlug = geminiData.slug_en;
+                if (!finalSearchSlug || finalSearchSlug.length < 3) finalSearchSlug = extractSlugFromUrl(item.url);
+                if (!finalSearchSlug) finalSearchSlug = "latest-telugu-news";
 
-//                 const newPost = new Post({
-//                     postId: generatePostId(),
-//                     title: geminiData.title,
-//                     summary: geminiData.summary,
-//                     text: geminiData.summary,
-//                     url: item.url,
-//                     imageSearchSlug: finalSearchSlug, 
-//                     source: item.source || "Manual",
-//                     sourceName: item.user?.name || "Manual",
-//                     sourceType: item.source === "Manual" ? "manual" : "rss",
-//                     imageUrl: imageUrl, 
-//                     videoUrl: tweetVideo,
+                const newPost = new Post({
+                    postId: generatePostId(),
+                    title: geminiData.title,
+                    summary: geminiData.summary,
+                    text: geminiData.summary,
+                    url: item.url,
+                    imageSearchSlug: finalSearchSlug, 
+                    source: item.source || "Manual",
+                    sourceName: item.user?.name || "Manual",
+                    sourceType: item.source === "Manual" ? "manual" : "rss",
+                    imageUrl: imageUrl, 
+                    videoUrl: tweetVideo,
 
-//                     // ✅ FIXED: Map relatedStories from Queue to Post
-//                     relatedStories: item.relatedStories || [],
+                    // ✅ FIXED: Map relatedStories from Queue to Post
+                    relatedStories: item.relatedStories || [],
 
-//                     categories: [geminiData.category || "General"],
-//                     tags: [], 
-//                     publishedAt: new Date(),
-//                     isPublished: true,
-//                     type: finalPostType,
-//                     lang: "te"
-//                 });
+                    categories: [geminiData.category || "General"],
+                    tags: [], 
+                    publishedAt: new Date(),
+                    isPublished: true,
+                    type: finalPostType,
+                    lang: "te"
+                });
 
-//                 await newPost.save();
-//                 console.log(`   ✅ Published: [${geminiData.category}] ${geminiData.title}`);
-//                 await Queue.deleteOne({ _id: item._id });
-//             } else {
-//                 console.log("   ⚠️ Gemini Failed");
-//                 await Queue.deleteOne({ _id: item._id });
-//             }
-//         } catch (e) {
-//             console.error(`   ❌ Error: ${e.message}`);
-//         }
-//         await sleep(5000);
-//     }
-// });
+                await newPost.save();
+                console.log(`   ✅ Published: [${geminiData.category}] ${geminiData.title}`);
+                await Queue.deleteOne({ _id: item._id });
+            } else {
+                console.log("   ⚠️ Gemini Failed");
+                await Queue.deleteOne({ _id: item._id });
+            }
+        } catch (e) {
+            console.error(`   ❌ Error: ${e.message}`);
+        }
+        await sleep(5000);
+    }
+});
 
 // --- SCHEDULERS ---
-// cron.schedule("*/15 * * * *", async () => { 
-//     // await loadSources(); // Reload sources before fetching
-//     // await fetchAndQueueRSS(); 
-// });
+cron.schedule("*/15 * * * *", async () => { 
+    await loadSources(); // Reload sources before fetching
+    await fetchAndQueueRSS(); 
+});
 
-// cron.schedule("*/30 * * * *", async () => {
-//     // await loadSources(); // Reload sources before fetching
-//     for (const handle of TARGET_HANDLES) {
-//         await fetchAndQueueTweetsForHandle(handle);
-//     }
-// });
+cron.schedule("*/30 * * * *", async () => {
+    await loadSources(); // Reload sources before fetching
+    for (const handle of TARGET_HANDLES) {
+        await fetchAndQueueTweetsForHandle(handle);
+    }
+});
 
 
 
