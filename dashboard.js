@@ -1251,7 +1251,7 @@ app.get("/dashboard", (req, res) => {
 
 
 // --- WORKER (With Last-Mile Deduplication) ---
-cron.schedule("*/10 * * * *", async () => {
+cron.schedule("*/1 * * * *", async () => {
     const batch = await Queue.find().sort({ queuedAt: 1 }).limit(3);
     if (batch.length === 0) return;
 
