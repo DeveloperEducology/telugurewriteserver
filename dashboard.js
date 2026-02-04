@@ -378,16 +378,27 @@ async function fetchAndQueueTweetsForHandle(userName) {
 
         if (newTweets.length === 0) return 0;
 
-        const queueDocs = newTweets.map((t) => ({
-            id: t.id,
-            text: t.text,
-            url: t.url,
-            media: t.media || [],
-            extendedEntities: t.extendedEntities || {},
-            user: t.user || { screen_name: userName, name: userName },
-            postType: "normal_post",
-            useAuthorContext: false,
-        }));
+        const queueDocs = newTweets.map((t) => {
+            // Extract Image URL
+            let imageUrl = null;
+            if (t.extendedEntities && t.extendedEntities.media && t.extendedEntities.media.length > 0) {
+                imageUrl = t.extendedEntities.media[0].media_url_https;
+            } else if (t.media && t.media.length > 0) {
+                imageUrl = t.media[0].media_url_https;
+            }
+
+            return {
+                id: t.id,
+                text: t.text,
+                url: t.url,
+                imageUrl: imageUrl, // Explicitly set imageUrl
+                media: t.media || [],
+                extendedEntities: t.extendedEntities || {},
+                user: t.user || { screen_name: userName, name: userName },
+                postType: "normal_post",
+                useAuthorContext: false,
+            };
+        });
 
         await Queue.insertMany(queueDocs);
         console.log(`✅ Auto-Fetch: Queued ${newTweets.length} from @${userName}`);
@@ -397,6 +408,85 @@ async function fetchAndQueueTweetsForHandle(userName) {
         return 0;
     }
 }
+
+// Fetch single tweet details
+async function fetchTweetDetails(tweetId) {
+    const API_URL = "https://api.twitterapi.io/twitter/tweets";
+    try {
+        console.log(`[DEBUG] Fetching Tweet ID: ${tweetId}`);
+        const response = await fetch(`${API_URL}?tweet_ids=${tweetId}`, {
+            headers: { "X-API-Key": TWITTER_API_IO_KEY },
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            console.error(`[DEBUG] Twitter API Error (${response.status}): ${errText}`);
+            return { success: false, error: `API Error ${response.status}: ${errText}` };
+        }
+
+        const data = await response.json();
+
+        if (data.tweets && data.tweets.length > 0) {
+            return { success: true, data: data.tweets[0] };
+        }
+
+        return { success: false, error: "Tweet object not found in API response" };
+
+    } catch (error) {
+        console.error("[DEBUG] Network/Code Error:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+// Add single tweet to queue
+app.post("/api/add-tweet-to-queue", async (req, res) => {
+    try {
+        const { tweetId } = req.body;
+        if (!tweetId) return res.status(400).json({ error: "Tweet ID required" });
+
+        // Check if already queued or posted
+        const existingQ = await Queue.findOne({ id: tweetId });
+        if (existingQ) return res.status(400).json({ error: "Tweet already in queue" });
+
+        const existingP = await Post.findOne({ tweetId: tweetId });
+        if (existingP) return res.status(400).json({ error: "Tweet already posted" });
+
+        const result = await fetchTweetDetails(tweetId);
+
+        if (!result.success) {
+            return res.status(404).json({ error: result.error || "Tweet not found or API error" });
+        }
+
+        const tweet = result.data;
+
+        // Extract Image
+        let imageUrl = null;
+        if (tweet.extendedEntities && tweet.extendedEntities.media && tweet.extendedEntities.media.length > 0) {
+            imageUrl = tweet.extendedEntities.media[0].media_url_https;
+        } else if (tweet.media && tweet.media.length > 0) {
+            imageUrl = tweet.media[0].media_url_https;
+        }
+
+        const queueItem = {
+            id: tweet.id,
+            text: tweet.text,
+            url: tweet.url || `https://twitter.com/i/web/status/${tweet.id}`,
+            imageUrl: imageUrl,
+            media: tweet.media || [],
+            extendedEntities: tweet.extendedEntities || {},
+            user: tweet.user || { screen_name: "manual_add", name: "Manual Add" },
+            postType: "normal_post",
+            useAuthorContext: false,
+            queuedAt: new Date()
+        };
+
+        await Queue.create(queueItem);
+        res.json({ success: true, message: "Tweet added to queue" });
+
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
 // 2. RSS FETCH & QUEUE (With Locking & Dedup)
 let isRSSFetching = false;
@@ -1161,7 +1251,7 @@ app.get("/dashboard", (req, res) => {
 
 
 // --- WORKER (With Last-Mile Deduplication) ---
-cron.schedule("*/1 * * * *", async () => {
+cron.schedule("*/10 * * * *", async () => {
     const batch = await Queue.find().sort({ queuedAt: 1 }).limit(3);
     if (batch.length === 0) return;
 
@@ -1250,8 +1340,8 @@ cron.schedule("*/1 * * * *", async () => {
 
 // --- SCHEDULERS ---
 cron.schedule("*/15 * * * *", async () => { 
-    await loadSources(); // Reload sources before fetching
-    await fetchAndQueueRSS(); 
+    // await loadSources(); // Reload sources before fetching
+    // await fetchAndQueueRSS(); 
 });
 
 cron.schedule("*/30 * * * *", async () => {

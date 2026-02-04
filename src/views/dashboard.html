@@ -541,6 +541,9 @@
         <button class="btn btn-warning" onclick="showAddTextModal()">
           <i class="fas fa-plus"></i> Add Text
         </button>
+        <button class="btn btn-info" onclick="showAddTweetModal()">
+          <i class="fab fa-twitter"></i> Add Tweet
+        </button>
         <button class="btn btn-success" onclick="showCreatePostModal()">
           <i class="fas fa-edit"></i> Manual Entry
         </button>
@@ -803,6 +806,29 @@
           </div>
         </div>
       </main>
+    </div>
+  </div>
+
+  <div class="modal" id="addTweetModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Add Tweet by ID</h3>
+        <button class="btn btn-light" onclick="hideModal('addTweetModal')">
+          X
+        </button>
+      </div>
+      <div class="modal-body">
+        <label>Tweet ID:</label>
+        <input type="text" id="manualTweetId" placeholder="e.g., 175678901234567890" />
+        <small style="display:block; margin-top:0.5rem; color:var(--gray)">
+          Enter the numeric ID of the tweet. The system will fetch details and optional image.
+        </small>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-success" onclick="submitTweetId()">
+          Fetch & Queue
+        </button>
+      </div>
     </div>
   </div>
 
@@ -1453,8 +1479,47 @@
       }
 
       hideModal("addUrlModal");
+      hideModal("addUrlModal");
       loadQueue();
       refreshDashboard();
+    }
+
+    function showAddTweetModal() {
+      document.getElementById("manualTweetId").value = "";
+      showModal("addTweetModal");
+    }
+
+    async function submitTweetId() {
+      const tweetId = document.getElementById("manualTweetId").value.trim();
+      if (!tweetId) return alert("Please enter a Tweet ID");
+
+      const btn = document.querySelector("#addTweetModal .btn-success");
+      const originalText = btn.innerText;
+      btn.innerText = "Fetching...";
+      btn.disabled = true;
+
+      try {
+        const res = await fetch("/api/add-tweet-to-queue", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tweetId })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          alert("✅ Tweet added to queue!");
+          hideModal("addTweetModal");
+          loadQueue();
+          refreshDashboard();
+        } else {
+          alert("❌ Error: " + (data.error || "Unknown error"));
+        }
+      } catch (error) {
+        alert("❌ Network Error");
+      } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+      }
     }
 
     // --- SOURCES ---
